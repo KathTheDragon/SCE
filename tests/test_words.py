@@ -11,8 +11,8 @@ def test_Word_iter_returns_phones():
 def test_Word_parse_adds_surrounding_hashes():
     assert words.Word.parse('abc').phones == ['#', 'a', 'b', 'c', '#']
 
-def test_Word_unparse_strips_surrounding_spaces():
-    assert words.Word(['#', 'a', 'b', 'c', '#']).unparse() == 'abc'
+def test_Word_str_strips_surrounding_spaces():
+    assert str(words.Word(['#', 'a', 'b', 'c', '#'])) == 'abc'
 
 ## parse ##
 
