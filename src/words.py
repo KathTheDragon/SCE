@@ -40,6 +40,7 @@ def parse(string, graphemes=('*',), separator=''):
         if graph is None:
             raise InvalidCharacter(string[0], graphemes, _string)
         else:
+            graph = string[:len(graph)]
             word.append(graph)
             string = string.removeprefix(graph).lstrip(separator)
     return word
