@@ -18,19 +18,18 @@ class Word:
     @staticmethod
     def parse(string, graphemes=('*',), separator=''):
         return Word(
-            phones=parse(f' {string} ', graphemes, separator),
+            phones=parse(re.sub(r'\s+', '#', f' {string} '), graphemes, separator),
             graphemes=graphemes,
             separator=separator
         )
 
     def __str__(self):
-        return unparse(self, self.graphemes, self.separator).strip()
+        return unparse(self, self.graphemes, self.separator).replace('#', ' ').strip()
 
     def __iter__(self):
         yield from self.phones
 
 def parse(string, graphemes=('*',), separator=''):
-    string = re.sub(r'\s+', '#', string)
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
     word = []
     string = string.lstrip(separator)
@@ -69,7 +68,7 @@ def unparse(word, graphemes=('*',), separator=''):
         elif any(startswith(grapheme, graph) and grapheme != graph for grapheme in graphemes):
             ambig.append(graph)
         string += graph
-    return string.strip(separator+'#').replace('#', ' ')
+    return string.strip(separator+'#')
 
 def startswith(string, prefix):
     if '*' not in prefix and '*' not in string:
