@@ -12,7 +12,7 @@ class InvalidCharacter(Exception):
 @dataclass
 class Word:
     phones: list[str]
-    graphemes: list[str] = ('*',)
+    graphemes: tuple[str] = ('*',)
     separator: str = ''
 
     @staticmethod
