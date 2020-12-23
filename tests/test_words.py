@@ -14,7 +14,7 @@ def test_word_unparse_strips_surrounding_spaces():
 
 def test_parse_rejects_characters_not_in_graphemes():
     with pytest.raises(InvalidCharacter,
-    match=r"^Encountered character 'a' not in graphemes \[b c d\]$"):
+    match=r"^Encountered character 'a' not in graphemes \[b c d\] while parsing string 'a'$"):
         words.parse('a', ('b', 'c', 'd'))
 
 def test_parse_prefers_longest_grapheme():

@@ -2,12 +2,13 @@ import re
 from dataclasses import dataclass
 
 class InvalidCharacter(Exception):
-    def __init__(self, char, graphemes):
+    def __init__(self, char, graphemes, string):
         self.char = char
         self.graphemes = graphemes
+        self.string = string
 
     def __str__(self):
-        return f'Encountered character {self.char!r} not in graphemes [{", ".join(self.graphemes)}]'
+        return f'Encountered character {self.char!r} not in graphemes [{", ".join(self.graphemes)}] while parsing string {self.string!r}'
 
 @dataclass
 class Word:
@@ -32,11 +33,12 @@ class Word:
 def parse(string, graphemes=('*',), separator=''):
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
     word = []
+    _string = string
     string = string.lstrip(separator)
     while string:
         graph = next(filter(lambda g: startswith(string, g), graphs), None)
         if graph is None:
-            raise InvalidCharacter(string[0], graphemes)
+            raise InvalidCharacter(string[0], graphemes, _string)
         else:
             word.append(graph)
             string = string.removeprefix(graph).lstrip(separator)
