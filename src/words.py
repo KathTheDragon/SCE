@@ -60,21 +60,23 @@ def unparse(word, graphemes=('*',), separator=''):
                     break
             for i in range(len(ambig)):
                 test = ''.join(ambig[i:])
-                if any(startswith(g, test) and g != test for g in graphemes):
+                if any(startswith(g, test, strict=True) for g in graphemes):
                     ambig = ambig[i:]
                     break
             else:
                 ambig = []
-        elif any(startswith(g, graph) and g != graph for g in graphemes):
+        elif any(startswith(g, graph, strict=True) for g in graphemes):
             ambig.append(graph)
         string += graph
     return string.strip(separator+'#')
 
-def startswith(string, prefix):
-    if '*' not in prefix and '*' not in string:
-        return string.startswith(prefix)
-    elif len(prefix) > len(string):
+def startswith(string, prefix, *, strict=False):
+    if len(prefix) > len(string):
         return False
+    elif strict and len(prefix) == len(string):
+        return False
+    elif '*' not in prefix and '*' not in string:
+        return string.startswith(prefix)
     else:
         return all(sc == '*' or pc == '*' or sc == pc for sc, pc in zip(string, prefix))
 
