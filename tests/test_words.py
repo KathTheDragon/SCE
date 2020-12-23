@@ -6,7 +6,7 @@ from SCE.src import words
 
 def test_Word_iter_returns_phones():
     phones = ['a', 'b', 'c', 'd', 'e']
-    assert list(words.Word(phones) == phones
+    assert list(words.Word(phones)) == phones
 
 def test_Word_parse_adds_surrounding_hashes():
     assert words.Word.parse('abc').phones == ['#', 'a', 'b', 'c', '#']
