@@ -12,8 +12,8 @@ class InvalidCharacter(Exception):
 @dataclass
 class Word:
     phones: list[str]
-    graphemes: list[str]
-    separator: str
+    graphemes: list[str] = ('*')
+    separator: str = ''
 
     @staticmethod
     def parse(string, graphemes=('*',), separator=''):
