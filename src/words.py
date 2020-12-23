@@ -65,7 +65,7 @@ def unparse(word, graphemes=('*',), separator=''):
                     break
             else:
                 ambig = []
-        elif any(startswith(grapheme, graph) and grapheme != graph for grapheme in graphemes):
+        elif any(startswith(g, graph) and g != graph for g in graphemes):
             ambig.append(graph)
         string += graph
     return string.strip(separator+'#')
