@@ -19,7 +19,7 @@ class Word:
     def parse(string, graphemes=('*',), separator=''):
         return Word(
             phones=parse(re.sub(r'\s+', '#', f' {string} '), graphemes, separator),
-            graphemes=graphemes,
+            graphemes=graphemes + ('#',),
             separator=separator
         )
 
