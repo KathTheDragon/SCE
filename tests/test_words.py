@@ -36,6 +36,19 @@ def test_parse_wildcard_graphemes_match_anything():
 
 ## unparse ##
 
+def test_unparse_joins_word_when_only_monographs():
+    assert words.unparse(('a', 'b', 'c'), ('a', 'b', 'c')) == 'abc'
+
+# Should probably change
+def test_unparse_allows_characters_not_in_graphemes():
+    assert words.unparse(('a', 'b', 'c'), ('ph', 'th', 'kh')) == 'abc'
+
+def test_unparse_inserts_separator_in_sequences_matching_multiple_graphemes():
+    assert words.unparse(('a', 'b', 'c'), ('a', 'b', 'c', 'ab', 'bc', 'abc'), '.') == 'a.b.c'
+    assert words.unparse(('ab', 'c'), ('a', 'b', 'c', 'ab', 'bc', 'abc'), '.') == 'ab.c'
+    assert words.unparse(('a', 'bc'), ('a', 'b', 'c', 'ab', 'bc', 'abc'), '.') == 'a.bc'
+    assert words.unparse(('abc',), ('a', 'b', 'c', 'ab', 'bc', 'abc'), '.') == 'abc'
+
 ## startswith ##
 
 def test_startswith_returns_false_when_prefix_longer_than_string():
