@@ -25,7 +25,7 @@ class Word:
         )
 
     def __str__(self):
-        return unparse(self, self.graphemes, self.separator).replace('#', ' ').strip()
+        return unparse(self, self.graphemes, self.separator).strip(separator+'#').replace('#', ' ')
 
     def __iter__(self):
         yield from self.phones
@@ -71,7 +71,7 @@ def unparse(word, graphemes=('*',), separator=''):
         elif any(startswith(g, graph, strict=True) for g in graphemes):
             ambig.append(graph)
         string += graph
-    return string.strip(separator+'#')
+    return string
 
 def startswith(string, prefix, *, strict=False):
     if len(prefix) > len(string):
