@@ -30,6 +30,12 @@ class Word:
     def __iter__(self):
         yield from self.phones
 
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return Word(self.phones[index], self.graphemes, self.separator)
+        else:
+            return self.phones[index]
+
 def parse(string, graphemes=('*',), separator=''):
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
     word = []
