@@ -25,7 +25,7 @@ class Word:
         )
 
     def __str__(self):
-        return unparse(self, self.graphemes, self.separator).strip(separator+'#').replace('#', ' ')
+        return unparse(self, self.graphemes, self.separator).strip(self.separator+'#').replace('#', ' ')
 
     def __iter__(self):
         yield from self.phones
