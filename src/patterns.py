@@ -125,7 +125,7 @@ class Wildcard(Element):
 
 
 @dataclass(repr=False, eq=False)
-class Repetition(Element, SubpatternMixin):
+class Repetition(SubpatternMixin, Element):
     number: int
 
     def __str__(self):
@@ -138,7 +138,7 @@ class Repetition(Element, SubpatternMixin):
 
 
 @dataclass(repr=False, eq=False)
-class WildcardRepetition(Element, SubpatternMixin):
+class WildcardRepetition(SubpatternMixin, Element):
     greedy: bool
 
     def __str__(self):
@@ -160,7 +160,7 @@ class WildcardRepetition(Element, SubpatternMixin):
 
 
 @dataclass(repr=False, eq=False)
-class Optional(Element, SubpatternMixin):
+class Optional(SubpatternMixin, Element):
     greedy: bool
 
     def __str__(self):
