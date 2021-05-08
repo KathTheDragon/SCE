@@ -38,10 +38,17 @@ class Element:
                 raise MatchFailed()
             return start
 
-    # Returns the length of the match; -1 denotes no match
+    def _match(self, word, index):
+        return False, 0
+
     def match(self, word, start=None, stop=None):
-        if (start is None) == (stop is None):
-            raise TypeError('exactly one of start and stop must be given.')
+        index = self.get_index(word, start=start, stop=stop)
+        matched, length = self._match(word, index)
+        if matched:
+            if start is None:
+                return None, stop - length
+            else:
+                return start + length, None
         else:
             raise MatchFailed()
 
@@ -53,16 +60,8 @@ class Grapheme(Element):
     def __str__(self):
         return self.grapheme
 
-    def match(self, word, start=None, stop=None):
-        index = self.get_index(word, start, stop)
-        if word[index] == self.grapheme:
-            length = 1
-            if start is None:
-                return None, stop - length
-            else:
-                return start + length, None
-        else:
-            raise MatchFailed()
+    def _match(self, word, index):
+        return word[index] == self.grapheme, 1
 
 
 @dataclass(repr=False, eq=False)
@@ -70,16 +69,8 @@ class Ditto(Element):
     def __str__(self):
         return '"'
 
-    def match(self, word, start=None, stop=None):
-        index = self.get_index(word, start, stop)
-        if index and word[index] == word[index-1]:
-            length = 1
-            if start is None:
-                return None, stop - length
-            else:
-                return start + length, None
-        else:
-            raise MatchFailed()
+    def _match(self, word, index):
+        return index and word[index] == word[index-1], 1
 
 
 @dataclass(repr=False, eq=False)
@@ -92,18 +83,10 @@ class Category(Element):
         else:
             return f'[{self.category.name}]'
 
-    def match(self, word, start=None, stop=None):
-        index = self.get_index(word, start, stop)
-        if word[index] in self.category:
-            length = 1
-            # Note that this 1 will change if sequences become supported in categories
-            if start is None:
-                return None, stop - length
-            else:
-                return start + length, None
-            # Somehow return the index self.category.index(word[index])
-        else:
-            raise MatchFailed()
+    def _match(self, word, index):
+        return word[index] in self.category, 1
+        # Note that this 1 will change if sequences become supported in categories
+        # Somehow return the index self.category.index(word[index])
 
 
 class SubpatternMixin:
@@ -123,16 +106,8 @@ class Wildcard(Element):
     def __str__(self):
         return ('**' if self.extended else '*') + ('' if self.greedy else '?')
 
-    def match(self, word, start=None, stop=None):
-        index = self.get_index(word, start, stop)
-        if self.extended or word[index] != '#':
-            length = 1
-            if start is None:
-                return None, stop - length
-            else:
-                return start + length, None
-        else:
-            raise MatchFailed()
+    def _match(self, word, index):
+        return self.extended or word[index] != '#', 1
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
         start, stop = self.match(word, start=start, stop=stop)
