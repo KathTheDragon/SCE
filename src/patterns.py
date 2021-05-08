@@ -152,15 +152,13 @@ class Repetition(Element):
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is None:
-            index = stop
             for _ in range(self.number):
-                index = self.pattern._match(word, stop=index).start
-            return None, index
+                stop = self.pattern._match(word, stop=stop).start
+            return None, stop
         else:  # stop is None
-            index = start
             for _ in range(self.number):
-                index = self.pattern._match(word, start=index).stop
-            return index, None
+                start = self.pattern._match(word, start=start).stop
+            return start, None
 
 
 @dataclass(repr=False, eq=False)
