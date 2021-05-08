@@ -30,13 +30,13 @@ class Element:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is None:
-            if stop <= 0:
-                raise MatchFailed()
-            return stop - 1
+            index = stop - 1
         else:  # stop is None
-            if start >= len(word):
-                raise MatchFailed()
-            return start
+            index = start
+        if 0 <= index < len(word):
+            return index
+        else:
+            raise MatchFailed()
 
     def _match(self, word, index):
         return False, 0
