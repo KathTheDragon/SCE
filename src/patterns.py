@@ -257,7 +257,7 @@ class Pattern:
         elif start is None:
             index = stop
             for i, element in reversed(enumerate(self.elements)):
-                if isinstance(element, (Optional, Wildcard, WildcardRepetition)):
+                if hasattr(element, '_match_pattern'):
                     pattern = Pattern(self.elements[:i])
                     index = element._match_pattern(pattern, word, stop=index).start
                     break
@@ -269,7 +269,7 @@ class Pattern:
         else:  # stop is None
             index = start
             for i, element in enumerate(self.elements):
-                if isinstance(element, (Optional, Wildcard, WildcardRepetition)):
+                if hasattr(element, '_match_pattern'):
                     pattern = Pattern(self.elements[i+1:])
                     index = element._match_pattern(pattern, word, start=index).stop
                     break
