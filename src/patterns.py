@@ -149,16 +149,16 @@ class Repetition(Element):
         return f'{{{self.number}}}'
 
     def match(self, word, start=None, stop=None):
-        if (start is None) == (stop is None):
-            raise TypeError('exactly one of start and stop must be given.')
-        elif start is None:
-            for _ in range(self.number):
-                stop = self.pattern._match(word, stop=stop).start
-            return None, stop
-        else:  # stop is None
-            for _ in range(self.number):
-                start = self.pattern._match(word, start=start).stop
-            return start, None
+        match = self.pattern._match(word, start=start, stop=stop)
+        if start is None:
+            return None, match.start
+        else:
+            return match.stop, None
+
+    def _match_pattern(self, pattern, word, start=None, stop=None):
+        for _ in range(self.number):
+            start, stop = self.match(word, start=start, stop=stop)
+        return pattern._match(word, start=start, stop=stop)
 
 
 @dataclass(repr=False, eq=False)
