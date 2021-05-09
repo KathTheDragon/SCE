@@ -47,16 +47,15 @@ class CharacterMixin:
             raise MatchFailed()
 
     def _match(self, word, index):
-        return False, 0
+        return False
 
     def match(self, word, start=None, stop=None):
         index = self.get_index(word, start=start, stop=stop)
-        matched, length = self._match(word, index)
-        if matched:
+        if self._match(word, index):
             if start is None:
-                return None, stop - length
+                return None, stop - 1
             else:
-                return start + length, None
+                return start + 1, None
         else:
             raise MatchFailed()
 
@@ -69,7 +68,7 @@ class Grapheme(CharacterMixin, Element):
         return self.grapheme
 
     def _match(self, word, index):
-        return word[index] == self.grapheme, 1
+        return word[index] == self.grapheme
 
 
 @dataclass(repr=False, eq=False)
@@ -78,7 +77,7 @@ class Ditto(CharacterMixin, Element):
         return '"'
 
     def _match(self, word, index):
-        return index and word[index] == word[index-1], 1
+        return index and word[index] == word[index-1]
 
 
 @dataclass(repr=False, eq=False)
@@ -92,8 +91,8 @@ class Category(CharacterMixin, Element):
             return f'[{self.category.name}]'
 
     def _match(self, word, index):
-        return word[index] in self.category, 1
-        # Note that this 1 will change if sequences become supported in categories
+        return word[index] in self.category
+        # Note that this will change if sequences become supported in categories
         # Somehow return the index self.category.index(word[index])
 
 
@@ -106,7 +105,7 @@ class Wildcard(CharacterMixin, Element):
         return ('**' if self.extended else '*') + ('' if self.greedy else '?')
 
     def _match(self, word, index):
-        return self.extended or word[index] != '#', 1
+        return self.extended or word[index] != '#'
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
         start, stop = self.match(word, start=start, stop=stop)
