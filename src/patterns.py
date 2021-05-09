@@ -89,15 +89,6 @@ class Category(Element):
         # Somehow return the index self.category.index(word[index])
 
 
-class SubpatternMixin:
-    def match(self, word, start=None, stop=None):
-        match = self.pattern._match(word, start=start, stop=stop)
-        if start is None:
-            return None, match.start
-        else:
-            return match.stop, None
-
-
 @dataclass(repr=False, eq=False)
 class Wildcard(Element):
     greedy: bool
@@ -122,6 +113,15 @@ class Wildcard(Element):
                 return pattern._match(word, start=start, stop=stop)
             except MatchFailed:
                 return self._match_pattern(pattern, word, start=start, stop=stop)
+
+
+class SubpatternMixin:
+    def match(self, word, start=None, stop=None):
+        match = self.pattern._match(word, start=start, stop=stop)
+        if start is None:
+            return None, match.start
+        else:
+            return match.stop, None
 
 
 @dataclass(repr=False, eq=False)
