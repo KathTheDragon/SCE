@@ -26,7 +26,15 @@ class Element:
         else:
             return NotImplemented
 
-    def get_index(self, word, start=None, stop=None):
+    def match(self, word, start=None, stop=None):
+        if (start is None) == (stop is None):
+            raise TypeError('exactly one of start and stop must be given.')
+        else:
+            raise MatchFailed()
+
+class CharacterMixin:
+    @staticmethod
+    def get_index(word, start=None, stop=None):
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is None:
@@ -54,7 +62,7 @@ class Element:
 
 
 @dataclass(repr=False, eq=False)
-class Grapheme(Element):
+class Grapheme(CharacterMixin, Element):
     grapheme: str
 
     def __str__(self):
@@ -65,7 +73,7 @@ class Grapheme(Element):
 
 
 @dataclass(repr=False, eq=False)
-class Ditto(Element):
+class Ditto(CharacterMixin, Element):
     def __str__(self):
         return '"'
 
@@ -74,7 +82,7 @@ class Ditto(Element):
 
 
 @dataclass(repr=False, eq=False)
-class Category(Element):
+class Category(CharacterMixin, Element):
     category: 'cats.Category'
 
     def __str__(self):
@@ -90,7 +98,7 @@ class Category(Element):
 
 
 @dataclass(repr=False, eq=False)
-class Wildcard(Element):
+class Wildcard(CharacterMixin, Element):
     greedy: bool
     extended: bool
 
