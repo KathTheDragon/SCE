@@ -116,6 +116,8 @@ class Wildcard(Element):
 
 
 class SubpatternMixin:
+    pattern: 'Pattern'
+
     def match(self, word, start=None, stop=None):
         match = self.pattern._match(word, start=start, stop=stop)
         if start is None:
