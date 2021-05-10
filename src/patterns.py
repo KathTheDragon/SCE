@@ -4,6 +4,19 @@ class MatchFailed(Exception):
     pass
 
 
+def get_index(word, start=None, stop=None):
+    if (start is None) == (stop is None):
+        raise TypeError('exactly one of start and stop must be given.')
+    elif start is None:
+        index = stop - 1
+    else:  # stop is None
+        index = start
+    if 0 <= index < len(word):
+        return index
+    else:
+        raise MatchFailed()
+
+
 @dataclass
 class Match:
     start: int
@@ -33,24 +46,11 @@ class Element:
             raise MatchFailed()
 
 class CharacterMixin:
-    @staticmethod
-    def get_index(word, start=None, stop=None):
-        if (start is None) == (stop is None):
-            raise TypeError('exactly one of start and stop must be given.')
-        elif start is None:
-            index = stop - 1
-        else:  # stop is None
-            index = start
-        if 0 <= index < len(word):
-            return index
-        else:
-            raise MatchFailed()
-
     def _match(self, word, index):
         return False
 
     def match(self, word, start=None, stop=None):
-        index = self.get_index(word, start=start, stop=stop)
+        index = get_index(word, start=start, stop=stop)
         if self._match(word, index):
             return 1
         else:

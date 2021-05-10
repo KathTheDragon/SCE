@@ -46,46 +46,46 @@ class MockPattern(Pattern):
             else:
                 raise MatchFailed()
 
-## CharacterMixin ##
+## Functions ##
 
-# CharacterMixin.get_index
-def test_CharacterMixin_get_index_requires_either_start_or_stop():
+def test_get_index_requires_either_start_or_stop():
     word = ['a']
     with raises(TypeError):
-        CharacterMixin.get_index(word)
+        get_index(word)
     with raises(TypeError):
-        CharacterMixin.get_index(word, start=0, stop=0)
+        get_index(word, start=0, stop=0)
 
-def test_CharacterMixin_get_index_start_must_be_at_least_zero():
+def test_get_index_start_must_be_at_least_zero():
     word = ['a', 'b', 'c']
-    assert CharacterMixin.get_index(word, start=0) == 0
+    assert get_index(word, start=0) == 0
     with raises(MatchFailed):
-        CharacterMixin.get_index(word, start=-1)
+        get_index(word, start=-1)
 
-def test_CharacterMixin_get_index_start_must_be_less_than_len_word():
+def test_get_index_start_must_be_less_than_len_word():
     word = ['a', 'b', 'c']
-    assert CharacterMixin.get_index(word, start=2) == 2
+    assert get_index(word, start=2) == 2
     with raises(MatchFailed):
-        CharacterMixin.get_index(word, start=3)
+        get_index(word, start=3)
 
-def test_CharacterMixin_get_index_stop_must_be_greater_than_zero():
+def test_get_index_stop_must_be_greater_than_zero():
     word = ['a', 'b', 'c']
-    assert CharacterMixin.get_index(word, stop=1) == 0
+    assert get_index(word, stop=1) == 0
     with raises(MatchFailed):
-        CharacterMixin.get_index(word, stop=0)
+        get_index(word, stop=0)
 
-def test_CharacterMixin_get_index_stop_must_be_at_most_len_word():
+def test_get_index_stop_must_be_at_most_len_word():
     word = ['a', 'b', 'c']
-    assert CharacterMixin.get_index(word, stop=3) == 2
+    assert get_index(word, stop=3) == 2
     with raises(MatchFailed):
-        CharacterMixin.get_index(word, stop=4)
+        get_index(word, stop=4)
 
-def test_CharacterMixin_get_index_returns_start__or_stop_minus_one():
+def test_get_index_returns_start__or_stop_minus_one():
     word = ['a', 'b', 'c']
-    assert CharacterMixin.get_index(word, start=1) == 1
-    assert CharacterMixin.get_index(word, stop=1) == 0
+    assert get_index(word, start=1) == 1
+    assert get_index(word, stop=1) == 0
 
-# CharacterMixin.match
+## CharacterMixin ##
+
 def test_CharacterMixin_match_raises_MatchFailed_when_doesnt_match():
     with raises(MatchFailed):
         MockCharacterElement(matches=False).match(['a'], start=0)
