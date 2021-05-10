@@ -214,6 +214,12 @@ class TargetRef(Element):
 class Pattern:
     elements: list[Element]
 
+    def __str__(self):
+        return ''.join(map(str, self.elements))
+
+    def __repr__(self):
+        return f'Pattern({str(self)!r})'
+
     def resolve(self, target=None):
         # Will need to handle category indexing too
         if target is not None:
