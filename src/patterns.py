@@ -272,11 +272,3 @@ class Pattern:
                 return Match(stop-length, stop)
         except MatchFailed:
             return None
-
-    def matchall(self, word, start=None, stop=None):
-        matches = []
-        for start in range(slice(start, stop).indices(len(word))):
-            match = self.match(word, start=start)
-            if match is not None:
-                matches.append(match)
-        return matches

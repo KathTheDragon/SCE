@@ -30,7 +30,7 @@ class Target:
     indices: list
 
     def match(self, word):
-        matches = self.pattern.matchall(word)
+        matches = [match := self.pattern.match(word, start=start) for start in range(len(word)) if match is not None]
         # if not matches:
         #     debug: >> No matches for this target
         # if not self.pattern:
