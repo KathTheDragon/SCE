@@ -7,14 +7,14 @@ class MatchFailed(Exception):
 def advance(word, length, start=None, stop=None):
     if (start is None) == (stop is None):
         raise TypeError('exactly one of start and stop must be given.')
-    elif start is None:
-        if length <= stop <= len(word):
-            return None, stop - length
-        else:
-            raise MatchFailed()
-    else:  # stop is None
+    elif start is not None:
         if 0 <= start <= len(word) - length:
             return start + length, None
+        else:
+            raise MatchFailed()
+    else:  # stop is not None
+        if length <= stop <= len(word):
+            return None, stop - length
         else:
             raise MatchFailed()
 
@@ -22,10 +22,10 @@ def advance(word, length, start=None, stop=None):
 def get_index(word, start=None, stop=None):
     if (start is None) == (stop is None):
         raise TypeError('exactly one of start and stop must be given.')
-    elif start is None:
-        index = stop - 1
-    else:  # stop is None
+    elif start is not None:
         index = start
+    else:  # stop is not None
+        index = stop - 1
     if 0 <= index < len(word):
         return index
     else:
@@ -235,19 +235,7 @@ class Pattern:
     def _match(self, word, start=None, stop=None):
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
-        elif start is None:
-            length = 0
-            for i, element in reversed(enumerate(self.elements)):
-                if hasattr(element, '_match_pattern'):
-                    pattern = Pattern(self.elements[:i])
-                    length += element._match_pattern(pattern, word, stop=stop-length)
-                    break
-
-                length += element.match(word, stop=stop-length)
-
-            return length
-
-        else:  # stop is None
+        elif start is not None:
             length = 0
             for i, element in enumerate(self.elements):
                 if hasattr(element, '_match_pattern'):
@@ -259,13 +247,25 @@ class Pattern:
 
             return length
 
+        else:  # stop is not None
+            length = 0
+            for i, element in reversed(enumerate(self.elements)):
+                if hasattr(element, '_match_pattern'):
+                    pattern = Pattern(self.elements[:i])
+                    length += element._match_pattern(pattern, word, stop=stop-length)
+                    break
+
+                length += element.match(word, stop=stop-length)
+
+            return length
+
     def match(self, word, start=None, stop=None):
         try:
             length = self._match(word, start, stop)
-            if start is None:
-                return Match(stop-length, stop)
-            else:
+            if start is not None:
                 return Match(start, start+length)
+            else:  # stop is not None
+                return Match(stop-length, stop)
         except MatchFailed:
             return None
 
