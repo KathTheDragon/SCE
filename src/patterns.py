@@ -242,10 +242,8 @@ class Pattern:
                     pattern = Pattern(self.elements[i+1:])
                     length += element._match_pattern(pattern, word, start=start+length)
                     break
-
-                length += element.match(word, start=start+length)
-
-            return length
+                else:
+                    length += element.match(word, start=start+length)
 
         else:  # stop is not None
             length = 0
@@ -254,10 +252,10 @@ class Pattern:
                     pattern = Pattern(self.elements[:i])
                     length += element._match_pattern(pattern, word, stop=stop-length)
                     break
+                else:
+                    length += element.match(word, stop=stop-length)
 
-                length += element.match(word, stop=stop-length)
-
-            return length
+        return length
 
     def match(self, word, start=None, stop=None):
         try:
