@@ -35,13 +35,13 @@ class MockPattern(Pattern):
     def _match(self, word, start=None, stop=None):
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
-        elif start is None:
-            if 0 < stop <= len(word):
+        elif start is not None:
+            if 0 <= start < len(word):
                 return self.length
             else:
                 raise MatchFailed()
         else:
-            if 0 <= start < len(word):
+            if 0 < stop <= len(word):
                 return self.length
             else:
                 raise MatchFailed()
