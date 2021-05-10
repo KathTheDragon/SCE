@@ -122,6 +122,7 @@ class Wildcard(CharacterMixin, Element):
                 return self._match_pattern(pattern, word, start=start, stop=stop)
 
 
+@dataclass(repr=False, eq=False)
 class SubpatternMixin:
     pattern: 'Pattern'
 
