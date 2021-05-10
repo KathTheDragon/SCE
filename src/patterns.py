@@ -108,18 +108,23 @@ class Wildcard(CharacterMixin, Element):
         return self.extended or word[index] != '#'
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
-        start, stop = self.match(word, start=start, stop=stop)
+        _start, _stop = self.match(word, start=start, stop=stop)
 
         if self.greedy:
             try:
-                return self._match_pattern(pattern, word, start=start, stop=stop)
+                match = self._match_pattern(pattern, word, start=_start, stop=_stop)
             except MatchFailed:
-                return pattern._match(word, start=start, stop=stop)
+                match = pattern._match(word, start=_start, stop=_stop)
         else:
             try:
-                return pattern._match(word, start=start, stop=stop)
+                match = pattern._match(word, start=_start, stop=_stop)
             except MatchFailed:
-                return self._match_pattern(pattern, word, start=start, stop=stop)
+                match = self._match_pattern(pattern, word, start=_start, stop=_stop)
+
+        if start is None:
+            return Match(match.start, stop)
+        else:
+            return Match(start, match.stop)
 
 
 @dataclass(repr=False, eq=False)
@@ -142,9 +147,15 @@ class Repetition(SubpatternMixin, Element):
         return f'{{{self.number}}}'
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
+        _start, _stop = start, stop
         for _ in range(self.number):
-            start, stop = self.match(word, start=start, stop=stop)
-        return pattern._match(word, start=start, stop=stop)
+            _start, _stop = self.match(word, start=_start, stop=_stop)
+        match = pattern._match(word, start=_start, stop=_stop)
+
+        if start is None:
+            return Match(match.start, stop)
+        else:
+            return Match(start, match.stop)
 
 
 @dataclass(repr=False, eq=False)
@@ -155,18 +166,23 @@ class WildcardRepetition(SubpatternMixin, Element):
         return '{*}' if self.greedy else '{*?}'
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
-        start, stop = self.match(word, start=start, stop=stop)
+        _start, _stop = self.match(word, start=start, stop=stop)
 
         if self.greedy:
             try:
-                return self._match_pattern(pattern, word, start=start, stop=stop)
+                match = self._match_pattern(pattern, word, start=_start, stop=_stop)
             except MatchFailed:
-                return pattern._match(word, start=start, stop=stop)
+                match = pattern._match(word, start=_start, stop=_stop)
         else:
             try:
-                return pattern._match(word, start=start, stop=stop)
+                match = pattern._match(word, start=_start, stop=_stop)
             except MatchFailed:
-                return self._match_pattern(pattern, word, start=start, stop=stop)
+                match = self._match_pattern(pattern, word, start=_start, stop=_stop)
+
+        if start is None:
+            return Match(match.start, stop)
+        else:
+            return Match(start, match.stop)
 
 
 @dataclass(repr=False, eq=False)
@@ -180,15 +196,23 @@ class Optional(SubpatternMixin, Element):
         if self.greedy:
             try:
                 _start, _stop = self.match(word, start=start, stop=stop)
-                return pattern._match(word, start=_start, stop=_stop)
+                match = pattern._match(word, start=_start, stop=_stop)
+                if start is None:
+                    return Match(match.start, stop)
+                else:
+                    return Match(start, match.stop)
             except MatchFailed:
                 return pattern._match(word, start=start, stop=stop)
         else:
             try:
                 return pattern._match(word, start=start, stop=stop)
             except MatchFailed:
-                start, stop = self.match(word, start=start, stop=stop)
-                return pattern._match(word, start=start, stop=stop)
+                _start, _stop = self.match(word, start=start, stop=stop)
+                match = pattern._match(word, start=_start, stop=_stop)
+                if start is None:
+                    return Match(match.start, stop)
+                else:
+                    return Match(start, match.stop)
 
 
 @dataclass(repr=False, eq=False)
