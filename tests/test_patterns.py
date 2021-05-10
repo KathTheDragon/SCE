@@ -48,6 +48,43 @@ class MockPattern(Pattern):
 
 ## Functions ##
 
+# advance
+def test_advance_requires_either_start_or_stop():
+    word = ['a']
+    with raises(TypeError):
+        advance(word, 1)
+    with raises(TypeError):
+        advance(word, 1, start=0, stop=0)
+
+def test_advance_start_must_be_at_least_zero():
+    word = ['a']
+    with raises(MatchFailed):
+        advance(word, 1, start=-1)
+
+def test_advance_start_must_be_at_most_len_word_minus_length():
+    word = ['a']
+    with raises(MatchFailed):
+        advance(word, 1, start=1)
+
+def test_advance_stop_must_be_at_least_length():
+    word = ['a']
+    with raises(MatchFailed):
+        advance(word, 1, stop=0)
+
+def test_advance_stop_must_be_at_most_len_word():
+    word = ['a']
+    with raises(MatchFailed):
+        advance(word, 1, stop=2)
+
+def test_advance_returns_start_plus_length_None_if_given_start():
+    word = ['a']
+    assert advance(word, 1, start=0) == (1, None)
+
+def test_advance_returns_None_stop_minus_length_if_given_stop():
+    word = ['a']
+    assert advance(word, 1, stop=1) == (None, 0)
+
+# get_index
 def test_get_index_requires_either_start_or_stop():
     word = ['a']
     with raises(TypeError):

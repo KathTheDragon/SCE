@@ -4,6 +4,21 @@ class MatchFailed(Exception):
     pass
 
 
+def advance(word, length, start=None, stop=None):
+    if (start is None) == (stop is None):
+        raise TypeError('exactly one of start and stop must be given.')
+    elif start is None:
+        if length <= stop <= len(word):
+            return None, stop - length
+        else:
+            raise MatchFailed()
+    else:  # stop is None
+        if 0 <= start <= len(word) - length:
+            return start + length, None
+        else:
+            raise MatchFailed()
+
+
 def get_index(word, start=None, stop=None):
     if (start is None) == (stop is None):
         raise TypeError('exactly one of start and stop must be given.')
@@ -106,10 +121,7 @@ class Wildcard(CharacterMixin, Element):
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
         length = self.match(word, start=start, stop=stop)
-        if start is None:
-            stop -= length
-        else:
-            start += length
+        start, stop = advance(word, length, start=start, stop=stop)
 
         if self.greedy:
             try:
@@ -140,14 +152,9 @@ class Repetition(SubpatternMixin, Element):
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
         length = 0
-        if start is None:
-            for _ in range(self.number):
-                length += self.match(word, stop=stop-length)
-            return length + pattern._match(word, stop=stop-length)
-        else:
-            for _ in range(self.number):
-                length += self.match(word, start=start+length)
-            return length + pattern._match(word, start=start+length)
+        for _ in range(self.number):
+            length += self.match(word, *advance(word, length, start, stop))
+        return length + pattern._match(word, *advance(word, length, start, stop))
 
 
 @dataclass(repr=False, eq=False)
@@ -159,10 +166,7 @@ class WildcardRepetition(SubpatternMixin, Element):
 
     def _match_pattern(self, pattern, word, start=None, stop=None):
         length = self.match(word, start=start, stop=stop)
-        if start is None:
-            stop -= length
-        else:
-            start += length
+        start, stop = advance(word, length, start=start, stop=stop)
 
         if self.greedy:
             try:
@@ -187,10 +191,7 @@ class Optional(SubpatternMixin, Element):
         if self.greedy:
             try:
                 length = self.match(word, start=start, stop=stop)
-                if start is None:
-                    return length + pattern._match(word, stop=stop-length)
-                else:
-                    return length + pattern._match(word, start=start+length)
+                return length + pattern._match(word, *advance(word, length, start, stop))
             except MatchFailed:
                 return pattern._match(word, start=start, stop=stop)
         else:
@@ -198,10 +199,7 @@ class Optional(SubpatternMixin, Element):
                 return pattern._match(word, start=start, stop=stop)
             except MatchFailed:
                 length = self.match(word, start=start, stop=stop)
-                if start is None:
-                    return length + pattern._match(word, stop=stop-length)
-                else:
-                    return length + pattern._match(word, start=start+length)
+                return length + pattern._match(word, *advance(word, length, start, stop))
 
 
 @dataclass(repr=False, eq=False)
