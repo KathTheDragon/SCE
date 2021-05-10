@@ -66,9 +66,11 @@ class GlobalEnvironment:
         target = word[match.start:match.stop]
         pattern = self.pattern.resolve(target=target)
         if not self.indices:
-            return bool(pattern.matchall(word))
+            indices = range(len(word))
         else:
-            return any(pattern.match(word, start=index) is not None for index in self.indices)
+            length = len(word)
+            indices = ((index+length) if index < 0 else index for index in self.indices)
+        return any(pattern.match(word, start=index) is not None for index in indices)
 
 
 @dataclass
