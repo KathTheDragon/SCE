@@ -32,10 +32,8 @@ def get_index(word, start=None, stop=None):
         raise MatchFailed()
 
 
-@dataclass
-class Match:
-    start: int
-    stop: int
+def Match(start, stop):
+    return slice(start, stop)
 
 
 @dataclass

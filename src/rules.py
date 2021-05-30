@@ -51,7 +51,7 @@ class LocalEnvironment:
     right: 'Pattern'
 
     def match(self, word, match):
-        target = word[match.start:match.stop]
+        target = word[match]
         left = self.left.resolve(target=target).match(word, stop=match.start) is not None
         right = self.right.resolve(target=target).match(word, start=match.stop) is not None
         return left and right
@@ -63,7 +63,7 @@ class GlobalEnvironment:
     indices: list
 
     def match(self, word, match):
-        target = word[match.start:match.stop]
+        target = word[match]
         pattern = self.pattern.resolve(target=target)
         if not self.indices:
             indices = range(len(word))
