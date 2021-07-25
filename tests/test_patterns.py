@@ -299,3 +299,31 @@ def test_Pattern_resolve_replaces_percent_with_target():
 def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
+
+# Pattern._match
+def test_Pattern_match_requires_exactly_one_of_start_and_stop():
+    with raises(TypeError):
+        Pattern([])._match([])
+    with raises(TypeError):
+        Pattern([])._match([], start=0, stop=0)
+
+def test_Pattern_match_raises_MatchFailed_on_failed_matches():
+    with raises(MatchFailed):
+        Pattern([Grapheme('a')])._match(['b'], start=0)
+
+def test_Pattern_match_sums_lengths_of_element_matches():
+    char_elem = MockCharacterElement(True)
+    patt_elem = MockPatternElement(3)
+    pattern = Pattern([char_elem, char_elem, patt_elem, char_elem, patt_elem])
+    word = ['a']*10
+    assert pattern._match(word, start=0) == 9
+    assert pattern._match(word, stop=10) == 9
+
+# Pattern.match
+def test_Pattern_match():
+    pattern = MockPattern(length=2)
+    word = ['a', 'a']
+    assert pattern.match(word, start=0) == Match(0, 2)
+    assert pattern.match(word, stop=2) == Match(0, 2)
+    assert pattern.match(word, start=1) is None
+    assert pattern.match(word, stop=1) is None
