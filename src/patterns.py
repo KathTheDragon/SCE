@@ -251,7 +251,7 @@ class Pattern:
 
         else:  # stop is not None
             length = 0
-            for i, element in reversed(enumerate(self.elements)):
+            for i, element in reversed(list(enumerate(self.elements))):
                 if hasattr(element, '_match_pattern'):
                     pattern = Pattern(self.elements[:i])
                     length += element._match_pattern(pattern, word, stop=stop-length)
