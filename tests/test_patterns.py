@@ -286,3 +286,16 @@ def test_Optional_with_greedy_False_doesnt_match_self_if_possible():
     assert element._match_pattern(pattern, word, stop=3) == 1
 
 ## Pattern ##
+
+# Pattern.resolve
+def test_Pattern_resolve_returns_self_with_no_target():
+    pattern = Pattern([])
+    assert pattern.resolve() is pattern
+
+def test_Pattern_resolve_replaces_percent_with_target():
+    pattern = Pattern([TargetRef(1)])
+    assert pattern.resolve('ab') == Pattern([Grapheme('a'), Grapheme('b')])
+
+def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
+    pattern = Pattern([TargetRef(-1)])
+    assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
