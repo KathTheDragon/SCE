@@ -1,14 +1,15 @@
 import re
+from collections import Iterator
 from dataclasses import dataclass
 
+@dataclass
 class InvalidCharacter(Exception):
-    def __init__(self, char, graphemes, string):
-        self.char = char
-        self.graphemes = graphemes
-        self.string = string
+    char: str
+    graphemes: tuple[str]
+    string: str
 
-    def __str__(self):
-        return f'Encountered character {self.char!r} not in graphemes [{", ".join(self.graphemes)}] while parsing string {self.string!r}'
+    def __str__(self) -> str:
+        return f'Encountered character {self.char!r} not in graphemes {list(self.graphemes)!r} while parsing string {self.string!r}'
 
 @dataclass
 class Word:
@@ -17,26 +18,26 @@ class Word:
     separator: str = ''
 
     @staticmethod
-    def parse(string, graphemes=('*',), separator=''):
+    def parse(string, graphemes: tuple[str]=('*',), separator: str='') -> Word:
         return Word(
             phones=parse(re.sub(r'\s+', '#', f' {string} '), graphemes, separator),
             graphemes=graphemes + ('#',),
             separator=separator
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return unparse(self, self.graphemes, self.separator).strip(self.separator+'#').replace('#', ' ')
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         yield from self.phones
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int | slice) -> str | Word:
         if isinstance(index, slice):
             return Word(self.phones[index], self.graphemes, self.separator)
         else:
             return self.phones[index]
 
-def parse(string, graphemes=('*',), separator=''):
+def parse(string: str, graphemes: tuple[str]=('*',), separator: str='') -> list[str]:
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
     word = []
     _string = string
@@ -51,7 +52,7 @@ def parse(string, graphemes=('*',), separator=''):
             string = string.removeprefix(graph).lstrip(separator)
     return word
 
-def unparse(word, graphemes=('*',), separator=''):
+def unparse(word: Word, graphemes: tuple[str]=('*',), separator: str='') -> str:
     string = ''
     if all(len(g) <= 1 for g in graphemes):
         string = ''.join(word)
@@ -79,7 +80,7 @@ def unparse(word, graphemes=('*',), separator=''):
         string += graph
     return string
 
-def startswith(string, prefix, *, strict=False):
+def startswith(string: str, prefix: str, *, strict: bool=False) -> bool:
     if len(prefix) > len(string):
         return False
     elif strict and len(prefix) == len(string):
@@ -89,5 +90,5 @@ def startswith(string, prefix, *, strict=False):
     else:
         return all(sc == '*' or pc == '*' or sc == pc for sc, pc in zip(string, prefix))
 
-def parseWords(words, graphemes=('*',), separator=''):
+def parseWords(words: list[str], graphemes: tuple[str]=('*',), separator: str='') -> list[Word]:
     return [Word.parse(word, graphemes, separator) for word in words]

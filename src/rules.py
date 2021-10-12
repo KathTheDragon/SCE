@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from random import randint
-from . import logger
+from . import logger, patterns, words
 
 ## Exceptions
 class RuleDidNotApply(Exception):
@@ -19,18 +19,13 @@ class BlockStopped(Exception):
     pass
 
 
-## Helper Functions
-def match_environments(environments, word, match):
-    return any(all(environment.match(word, match) for environment in and_environments) for and_environments in environments)
-
-
 ## Classes
 @dataclass
 class Target:
-    pattern: 'Pattern'
-    indices: list
+    pattern: patterns.Pattern
+    indices: list[int]
 
-    def match(self, word):
+    def match(self, word: words.Word) -> list[slice]:
         matches = [match := self.pattern.match(word, start=start) for start in range(len(word)) if match is not None]
         if self.indices:
             matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
@@ -48,10 +43,10 @@ class Target:
 
 @dataclass
 class LocalEnvironment:
-    left: 'Pattern'
-    right: 'Pattern'
+    left: patterns.Pattern
+    right: patterns.Pattern
 
-    def match(self, word, match):
+    def match(self, word: words.Word, match: slice) -> bool:
         target = word[match]
         left = self.left.resolve(target=target).match(word, stop=match.start) is not None
         right = self.right.resolve(target=target).match(word, start=match.stop) is not None
@@ -60,10 +55,10 @@ class LocalEnvironment:
 
 @dataclass
 class GlobalEnvironment:
-    pattern: 'Pattern'
-    indices: list
+    pattern: patterns.Pattern
+    indices: list[int]
 
-    def match(self, word, match):
+    def match(self, word: words.Word, match: slice) -> bool:
         target = word[match]
         pattern = self.pattern.resolve(target=target)
         if not self.indices:
@@ -73,14 +68,20 @@ class GlobalEnvironment:
             indices = ((index+length) if index < 0 else index for index in self.indices)
         return any(pattern.match(word, start=index) is not None for index in indices)
 
+Environment = LocalEnvironment | GlobalEnvironment
+
+
+def match_environments(environments: list[list[Environment]], word: words.Word, match: slice) -> bool:
+    return any(all(environment.match(word, match) for environment in and_environments) for and_environments in environments)
+
 
 @dataclass
 class Predicate:
-    result: list
-    conditions: list
-    exceptions: list
+    result: list[patterns.Pattern]
+    conditions: list[list[Environment]]
+    exceptions: list[list[Environment]]
 
-    def match(self, word, match):
+    def match(self, word: words.Word, match: slice) -> bool:
         if match_environments(self.exceptions, word, match):
             logger.debug('>> Matched an exception')
             return False
@@ -104,7 +105,7 @@ class Flags:
 
 
 class _BaseRule:
-    def __call__(self, word):
+    def __call__(self, word: words.Word) -> words.Word:
         if randint(1, 100) <= self.flags.chance:
             for _ in range(self.flags.repeat):
                 wordin = word
@@ -124,10 +125,10 @@ class Rule(_BaseRule):
     predicates: list[Predicate]
     flags: Flags = Flags()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.rule
 
-    def _apply(self, word):
+    def _apply(self, word: words.Word) -> words.Word:
         logger.debug(f'This rule: {self}')
         logger.debug('Begin matching targets')
         matches = []
@@ -141,12 +142,12 @@ class Rule(_BaseRule):
         if self.flags.rtl:
             logger.debug('Sorting right-to-left')
             matches.sort(key=lambda p: (-p[0].stop, p[1]))
-            def overlaps(match, last_match):
+            def overlaps(match: slice, last_match: slice) -> bool:
                 return match.stop > last_match.start
         else:
             logger.debug('Sorting left-to-right')
             matches.sort(key=lambda p: (p[0].start, p[1]))
-            def overlaps(match, last_match):
+            def overlaps(match: slice, last_match: slice) -> bool:
                 return match.start < last_match.stop
         logger.debug(f'Final matches at positions {[match.start for match, _ in matches]}')
 
@@ -164,7 +165,7 @@ class Rule(_BaseRule):
                     logger.debug('>> Match validated, getting replacement')
                     last_match = match
                     replacement = predicate.results[i % len(predicate.results)]
-                    replacement = replacement.resolve(match, word)
+                    replacement = replacement.resolve(word[match])
                     logger.debug(f'>>> Replacement is {str(replacement)!r}')
                     changes.append((match, replacement))
                     break
@@ -193,10 +194,10 @@ class RuleBlock(_BaseRule):
     rules: list
     flags: Flags = Flags()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Block {self.name}'
 
-    def _apply(self, word):
+    def _apply(self, word: words.Word) -> words.Word:
         applied = False
         rules = []  # We use a list to store rules, since they may be applied multiple times
         values = []  # We have a parallel list for storing the values of the 'for' flag per rule
