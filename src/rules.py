@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from random import randint
+from . import logger
 
 ## Exceptions
 class RuleDidNotApply(Exception):
@@ -31,18 +32,18 @@ class Target:
 
     def match(self, word):
         matches = [match := self.pattern.match(word, start=start) for start in range(len(word)) if match is not None]
-        # if not matches:
-        #     debug: >> No matches for this target
-        # if not self.pattern:
-        #     debug: >> Null target matched all positions in range 1..{len(word)}
-        # else:
-        #     for match in matches:
-        #         debug: >> Target matched {str(word[match.start:match.stop])!r} at {match.start}
+        if self.indices:
+            matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
 
-        if not self.indices:
-            return matches
+        if not matches:
+            logger.debug('>> No matches for this target')
+        elif self.pattern or self.indices:
+            for match in matches:
+                logger.debug(f'>> Target matched {str(word[match])!r} at {match.start}')
         else:
-            return [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
+            logger.debug(f'>> Null target matched all positions in range 1..{len(word)}')
+
+        return matches
 
 
 @dataclass
@@ -81,13 +82,13 @@ class Predicate:
 
     def match(self, word, match):
         if match_environments(self.exceptions, word, match):
-            # debug: >> Matched an exception
+            logger.debug('>> Matched an exception')
             return False
         elif match_environments(self.conditions, word, match) or not self.conditions:
-            # debug: >> Matched a condition
+            logger.debug('>> Matched a condition')
             return True
         else:
-            # debug: >> No condition matched
+            logger.debug('>> No condition matched')
             return False
 
 
@@ -111,7 +112,7 @@ class _BaseRule:
                 if word == wordin:
                     break
         else:
-            # info: {str(self)!r} was randomly not run on {str(word)!r}
+            logger.info(f'{str(self)!r} was randomly not run on {str(word)!r}')
             raise RuleRandomlySkipped()
         return word
 
@@ -127,62 +128,62 @@ class Rule(_BaseRule):
         return self.rule
 
     def _apply(self, word):
-        # debug: This rule: {self}
-        # debug: Begin matching targets
+        logger.debug(f'This rule: {self}')
+        logger.debug('Begin matching targets')
         matches = []
         for i, target in enumerate(self.targets):
-            # debug: > Matching {str(target)!r}
+            logger.debug(f'> Matching {str(target)!r}')
             matches.extend([(match, i) for match in target.match(word)])
         if not matches:
-            # debug: No matches
-            # debug: {str(self)!r} does not apply to {str(word)!r}
+            logger.debug('No matches')
+            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoMatchesFound()
         if self.flags.rtl:
-            # debug: Sorting right-to-left
+            logger.debug('Sorting right-to-left')
             matches.sort(key=lambda p: (-p[0].stop, p[1]))
             def overlaps(match, last_match):
                 return match.stop > last_match.start
         else:
-            # debug: Sorting left-to-right
+            logger.debug('Sorting left-to-right')
             matches.sort(key=lambda p: (p[0].start, p[1]))
             def overlaps(match, last_match):
                 return match.start < last_match.stop
-        # debug: Final matches at positions {[match.start for match, _ in matches]}
+        logger.debug(f'Final matches at positions {[match.start for match, _ in matches]}')
 
-        # debug: Validate matches
+        logger.debug('Validate matches')
         changes = []
         last_match = None
         for match, i in matches:
-            # debug: > Validating match at {match.start}
+            logger.debug(f'> Validating match at {match.start}')
             # Check overlap
             if last_match is not None and overlaps(match, last_match):
-                # debug: >> Match overlaps with last validated match
+                logger.debug('>> Match overlaps with last validated match')
                 continue
             for predicate in self.predicates:
                 if predicate.match(word, match):
-                    # debug: >> Match validated, getting replacement
+                    logger.debug('>> Match validated, getting replacement')
                     last_match = match
                     replacement = predicate.results[i % len(predicate.results)]
                     replacement = replacement.resolve(match, word)
-                    # debug: >>> Replacement is {str(replacement)!r}
+                    logger.debug(f'>>> Replacement is {str(replacement)!r}')
                     changes.append((match, replacement))
                     break
         if not changes:
-            # debug: No matches validated
-            # debug: {str(self)!r} does not apply to {str(word)!r}
+            logger.debug('No matches validated')
+            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoMatchesValidated()
-        # else:
-        #     debug: Validated matches at {[match.start for match, _ in changes]}
+        else:
+            logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
 
-        # debug: Applying matches to {str(word)!r}
+        logger.debug(f'Applying matches to {str(word)!r}')
         wordin = word
         if not self.flags.rtl:
             changes.reverse()  # We need changes to always be applied right-to-left
         for match, rep in changes:
-            # debug: > Changing {str(word[match.start:match.stop])!r} to {str(replacement)!r} at {match.start}
+            logger.debug(f'> Changing {str(word[match])!r} to {str(replacement)!r} at {match.start}')
             word = word.replace(match, replacement)
 
-        # info: {str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}
+        logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
         return word
 
 
