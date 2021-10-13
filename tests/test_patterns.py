@@ -286,6 +286,9 @@ def test_Optional_with_greedy_False_doesnt_match_self_if_possible():
     assert element._match_pattern(pattern, word, stop=3) == 1
 
 ## Pattern ##
+def test_Pattern_is_truthy_iff_not_empty():
+    assert not Pattern([])
+    assert Pattern([Grapheme('a')])
 
 # Pattern.resolve
 def test_Pattern_resolve_returns_self_with_no_target():

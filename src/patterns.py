@@ -225,6 +225,9 @@ class Pattern:
     def __repr__(self) -> str:
         return f'Pattern({str(self)!r})'
 
+    def __bool__(self) -> bool:
+        return bool(self.elements)
+
     def resolve(self, target: words.Word|None=None) -> Pattern:
         # Will need to handle category indexing too
         if target is not None:
