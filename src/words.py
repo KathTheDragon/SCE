@@ -28,6 +28,9 @@ class Word:
     def __str__(self) -> str:
         return unparse(self, self.graphemes, self.separator).strip(self.separator+'#').replace('#', ' ')
 
+    def __len__(self) -> int:
+        return len(self.phones)
+
     def __iter__(self) -> Iterator[str]:
         yield from self.phones
 
