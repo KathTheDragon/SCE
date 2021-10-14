@@ -26,7 +26,7 @@ class Target:
     indices: list[int]
 
     def match(self, word: words.Word) -> list[slice]:
-        matches = [match := self.pattern.match(word, start=start) for start in range(len(word)) if match is not None]
+        matches = list(filter(None, (self.pattern.match(word, start=start) for start in range(len(word)))))
         if self.indices:
             matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
 
