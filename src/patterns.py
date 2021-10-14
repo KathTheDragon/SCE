@@ -51,7 +51,7 @@ class Element:
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({str(self)!r})'
 
-    def __eq__(self, other: str | Element) -> bool:
+    def __eq__(self, other: 'str | Element') -> bool:
         if isinstance(other, str):
             return str(self) == other
         elif type(self) == type(other):
@@ -228,7 +228,7 @@ class Pattern:
     def __bool__(self) -> bool:
         return bool(self.elements)
 
-    def resolve(self, target: words.Word|None=None) -> Pattern:
+    def resolve(self, target: words.Word|None=None) -> 'Pattern':
         # Will need to handle category indexing too
         if target is not None:
             target = [Grapheme(phone) for phone in target]

@@ -1,5 +1,5 @@
 import re
-from collections import Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 @dataclass
@@ -18,7 +18,7 @@ class Word:
     separator: str = ''
 
     @staticmethod
-    def parse(string, graphemes: tuple[str]=('*',), separator: str='') -> Word:
+    def parse(string, graphemes: tuple[str]=('*',), separator: str='') -> 'Word':
         return Word(
             phones=parse(re.sub(r'\s+', '#', f' {string} '), graphemes, separator),
             graphemes=graphemes + ('#',),
@@ -31,7 +31,7 @@ class Word:
     def __iter__(self) -> Iterator[str]:
         yield from self.phones
 
-    def __getitem__(self, index: int | slice) -> str | Word:
+    def __getitem__(self, index: int | slice) -> 'str | Word':
         if isinstance(index, slice):
             return Word(self.phones[index], self.graphemes, self.separator)
         else:
