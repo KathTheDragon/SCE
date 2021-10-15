@@ -119,8 +119,6 @@ class _BaseRule:
             raise RuleRandomlySkipped()
 
 
-OverlapFunc = Callable[[slice, slice], bool]
-
 @dataclass
 class Rule(_BaseRule):
     rule: str
@@ -131,7 +129,7 @@ class Rule(_BaseRule):
     def __str__(self) -> str:
         return self.rule
 
-    def _get_matches(self, word: words.Word) -> tuple[list[tuple[slice, int]], OverlapFunc]:
+    def _get_matches(self, word: words.Word) -> list[tuple[slice, int]]:
         logger.debug('Begin matching targets')
         matches = []
         for i, target in enumerate(self.targets):
@@ -144,21 +142,23 @@ class Rule(_BaseRule):
         if self.flags.rtl:
             logger.debug('Sorting right-to-left')
             matches.sort(key=lambda p: (-p[0].stop, p[1]))
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.stop > last_match.start
         else:
             logger.debug('Sorting left-to-right')
             matches.sort(key=lambda p: (p[0].start, p[1]))
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.start < last_match.stop
         logger.debug(f'Final matches at positions {[match.start for match, _ in matches]}')
-        return matches, overlaps
+        return matches
 
-    def _validate_matches(self, matches: list[tuple[slice, int]], overlaps: OverlapFunc
+    def _validate_matches(self, matches: list[tuple[slice, int]]
             ) -> list[tuple[slice, patterns.Pattern]]:
         logger.debug('Validate matches')
         changes = []
         last_match = None
+        if self.flags.rtl:
+            def overlaps(match: slice, last_match: slice) -> bool:
+                return match.stop > last_match.start
+        else:
+            def overlaps(match: slice, last_match: slice) -> bool:
+                return match.start < last_match.stop
         for match, i in matches:
             logger.debug(f'> Validating match at {match.start}')
             # Check overlap
@@ -196,8 +196,8 @@ class Rule(_BaseRule):
     def _apply(self, word: words.Word) -> words.Word:
         logger.debug(f'This rule: {self}')
 
-        matches, overlaps = self._get_matches(word)
-        changes = self._validate_matches(matches, overlaps)
+        matches = self._get_matches(word)
+        changes = self._validate_matches(matches)
         word = self._apply_changes(word, changes)
 
         logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
