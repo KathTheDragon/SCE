@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from random import randint
 from . import logger, patterns, words
@@ -118,6 +119,8 @@ class _BaseRule:
             raise RuleRandomlySkipped()
 
 
+OverlapFunc = Callable[[slice, slice], bool]
+
 @dataclass
 class Rule(_BaseRule):
     rule: str
@@ -128,8 +131,7 @@ class Rule(_BaseRule):
     def __str__(self) -> str:
         return self.rule
 
-    def _apply(self, word: words.Word) -> words.Word:
-        logger.debug(f'This rule: {self}')
+    def _get_matches(self, word: words.Word) -> tuple[list[tuple[slice, int]], OverlapFunc]:
         logger.debug('Begin matching targets')
         matches = []
         for i, target in enumerate(self.targets):
@@ -150,7 +152,10 @@ class Rule(_BaseRule):
             def overlaps(match: slice, last_match: slice) -> bool:
                 return match.start < last_match.stop
         logger.debug(f'Final matches at positions {[match.start for match, _ in matches]}')
+        return matches, overlaps
 
+    def _validate_matches(self, matches: list[tuple[slice, int]], overlaps: OverlapFunc
+            ) -> list[tuple[slice, patterns.Pattern]]:
         logger.debug('Validate matches')
         changes = []
         last_match = None
@@ -175,7 +180,10 @@ class Rule(_BaseRule):
             raise NoMatchesValidated()
         else:
             logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
+            return changes
 
+    def _apply_changes(self, word: words.Word, changes: list[tuple[slice, patterns.Pattern]]
+            ) -> words.Word:
         logger.debug(f'Applying matches to {str(word)!r}')
         wordin = word
         if not self.flags.rtl:
@@ -183,6 +191,14 @@ class Rule(_BaseRule):
         for match, rep in changes:
             logger.debug(f'> Changing {str(word[match])!r} to {str(replacement)!r} at {match.start}')
             word = word.replace(match, replacement)
+        return word
+
+    def _apply(self, word: words.Word) -> words.Word:
+        logger.debug(f'This rule: {self}')
+
+        matches, overlaps = self._get_matches(word)
+        changes = self._validate_matches(matches, overlaps)
+        word = self._apply_changes(word, changes)
 
         logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
         return word
