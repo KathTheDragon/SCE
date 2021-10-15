@@ -207,7 +207,7 @@ class Rule(BaseRule):
 @dataclass
 class RuleBlock(BaseRule):
     name: str
-    rules: list
+    rules: list[BaseRule]
     flags: Flags = Flags()
 
     def __str__(self) -> str:
