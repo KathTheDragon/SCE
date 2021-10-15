@@ -107,7 +107,7 @@ class Flags:
     chance: int = 100
 
 
-class _BaseRule:
+class BaseRule:
     def __call__(self, word: Word) -> Word:
         if randint(1, 100) <= self.flags.chance:
             for _ in range(self.flags.repeat):
@@ -122,7 +122,7 @@ class _BaseRule:
 
 
 @dataclass
-class Rule(_BaseRule):
+class Rule(BaseRule):
     rule: str
     targets: list[Target]
     predicates: list[Predicate]
@@ -205,7 +205,7 @@ class Rule(_BaseRule):
 
 
 @dataclass
-class RuleBlock(_BaseRule):
+class RuleBlock(BaseRule):
     name: str
     rules: list
     flags: Flags = Flags()
