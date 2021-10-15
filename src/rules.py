@@ -112,10 +112,10 @@ class _BaseRule:
                 word = self._apply(word)
                 if word == wordin:
                     break
+            return word
         else:
             logger.info(f'{str(self)!r} was randomly not run on {str(word)!r}')
             raise RuleRandomlySkipped()
-        return word
 
 
 @dataclass
