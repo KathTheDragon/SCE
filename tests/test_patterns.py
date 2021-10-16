@@ -303,6 +303,38 @@ def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
 
+# Pattern.as_phones
+def test_Pattern_as_phones_converts_Grapheme_to_string():
+    pattern = Pattern([Grapheme('a'), Grapheme('b'), Grapheme('c')])
+    assert pattern.as_phones('') == ['a', 'b', 'c']
+
+def test_Pattern_as_phones_Ditto_copies_previous_string():
+    pattern = Pattern([Grapheme('a'), Ditto()])
+    assert pattern.as_phones('') == ['a', 'a']
+
+    pattern = Pattern([Grapheme('a'), Ditto(), Ditto()])
+    assert pattern.as_phones('') == ['a', 'a', 'a']
+
+    pattern = Pattern([Ditto()])
+    assert pattern.as_phones('a') == ['a']
+
+def test_Pattern_as_phones_Repetition_repeats_internal_pattern():
+    pattern = Pattern([Repetition(Pattern([Grapheme('a')]), 3)])
+    assert pattern.as_phones('') == ['a', 'a', 'a']
+
+    pattern = Pattern([Repetition(Pattern([Ditto(), Grapheme('b')]), 2)])
+    assert pattern.as_phones('a') == ['a', 'b', 'b', 'b']
+
+def test_Pattern_as_phones_disallows_other_element_types():
+    with raises(TypeError):
+        Pattern([Category(None)]).as_phones('')
+    with raises(TypeError):
+        Pattern([Wildcard(False, False)]).as_phones('')
+    with raises(TypeError):
+        Pattern([WildcardRepetition(Pattern([]), False)]).as_phones('')
+    with raises(TypeError):
+        Pattern([Optional(Pattern([]), False)]).as_phones('')
+
 # Pattern._match
 def test_Pattern_match_requires_exactly_one_of_start_and_stop():
     with raises(TypeError):

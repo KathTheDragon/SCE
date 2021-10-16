@@ -246,6 +246,20 @@ class Pattern:
         else:
             return self
 
+    def as_phones(self, last_phone: str):
+        phones = []
+        for elem in self.elements:
+            if isinstance(elem, Grapheme):
+                phones.append(elem.grapheme)
+            elif isinstance(elem, Ditto):
+                phones.append(phones[-1] if phones else last_phone)
+            elif isinstance(elem, Repetition):
+                for _ in range(elem.number):
+                    phones.extend(elem.pattern.as_phones(phones[-1] if phones else last_phone))
+            else:
+                raise TypeError(f'cannot convert {type(elem).__name__!r} to phones')
+        return phones
+
     def _match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> int:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')

@@ -189,7 +189,7 @@ class Rule(BaseRule):
             changes.reverse()  # We need changes to always be applied right-to-left
         for match, rep in changes:
             logger.debug(f'> Changing {str(word[match])!r} to {str(replacement)!r} at {match.start}')
-            word = word.replace(match, replacement)
+            word = word.replace(match, replacement.as_phones(word[match.start-1]))
         return word
 
     def _apply(self, word: Word) -> Word:
