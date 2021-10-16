@@ -1,5 +1,5 @@
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
 @dataclass
@@ -39,6 +39,13 @@ class Word:
             return Word(self.phones[index], self.graphemes, self.separator)
         else:
             return self.phones[index]
+
+    def replace(self, match: slice, replacement: list[str]) -> 'Word':
+        return Word(
+            phones=self.phones[:match.start] + replacement + self.phones[match.stop:],
+            graphemes=combine_graphemes(self.graphemes, replacement),
+            separator=self.separator
+        )
 
 def parse(string: str, graphemes: tuple[str]=('*',), separator: str='') -> list[str]:
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
@@ -93,5 +100,21 @@ def startswith(string: str, prefix: str, *, strict: bool=False) -> bool:
     else:
         return all(sc == '*' or pc == '*' or sc == pc for sc, pc in zip(string, prefix))
 
+def matches(string1: str, string2: str) -> bool:
+    if len(string1) != len(string2):
+        return False
+    elif '*' not in string1 and '*' not in string2:
+        return string1 == string2
+    else:
+        return all(c1 == '*' or c2 == '*' or c1 == c2 for c1, c2 in zip(string1, string2))
+
 def parseWords(words: list[str], graphemes: tuple[str]=('*',), separator: str='') -> list[Word]:
     return [Word.parse(word, graphemes, separator) for word in words]
+
+def combine_graphemes(*grapheme_sets: Iterable[str]) -> tuple[str]:
+    new_graphemes = []
+    for graphemes in grapheme_sets:
+        for grapheme in graphemes:
+            if not any(matches(grapheme, g) for g in new_graphemes):
+                new_graphemes.append(grapheme)
+    return tuple(new_graphemes)

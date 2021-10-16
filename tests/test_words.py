@@ -14,6 +14,16 @@ def test_Word_parse_adds_surrounding_hashes():
 def test_Word_str_strips_surrounding_spaces():
     assert str(Word(['#', 'a', 'b', 'c', '#'])) == 'abc'
 
+def test_Word_replace_returns_new_word_with_match_replaced():
+    word = Word(['#', 'a', 'b', 'c', '#'])
+    assert word.replace(slice(1, 3), ['1', '2', '3']) == Word(['#', '1', '2', '3', 'c', '#'])
+    assert word == Word(['#', 'a', 'b', 'c', '#'])
+
+def test_Word_replace_adds_new_graphemes_to_new_word():
+    word = Word(['#', 'a', 'b', 'c', '#'])
+    new_word = word.replace(slice(1, 3), ['aa', 'bb'])
+    assert new_word.graphemes == ('*', 'aa', 'bb')
+
 ## parse ##
 
 def test_parse_rejects_characters_not_in_graphemes():
@@ -79,4 +89,32 @@ def test_startswith_allows_star_to_match_any_character():
     assert startswith('*b', 'ab')
     assert not startswith('*b', 'ab', strict=True)
 
+## matches ##
+
+def test_matches_returns_false_when_strings_are_unequal_lengths():
+    assert not matches('abc', 'abcd')
+    assert not matches('abc', 'ab')
+
+def test_matches_returns_true_when_strings_are_identical():
+    assert matches('abc', 'abc')
+
+def test_matches_allows_star_to_match_any_character():
+    assert matches('ab', '**')
+    assert matches('ab', 'a*')
+    assert matches('ab', '*b')
+    assert matches('a*', '**')
+    assert matches('a*', '*b')
+    assert matches('a*', 'ab')
+    assert matches('*b', '**')
+    assert matches('*b', 'a*')
+    assert matches('*b', 'ab')
+
 ## parseWords ##
+
+## combine_graphemes ##
+
+def test_combine_graphemes_concatenates_and_deduplicates_arguments():
+    assert combine_graphemes(
+        ('a', 'b', 'c', 'd'),
+        ['a', 'e', 'f', 'b'],
+    ) == ('a', 'b', 'c', 'd', 'e', 'f')
