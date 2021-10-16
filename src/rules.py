@@ -185,7 +185,6 @@ class Rule(BaseRule):
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, Pattern]]) -> Word:
         logger.debug(f'Applying matches to {str(word)!r}')
-        wordin = word
         if not self.flags.rtl:
             changes.reverse()  # We need changes to always be applied right-to-left
         for match, rep in changes:
@@ -195,6 +194,7 @@ class Rule(BaseRule):
 
     def _apply(self, word: Word) -> Word:
         logger.debug(f'This rule: {self}')
+        wordin = word
 
         matches = self._get_matches(word)
         changes = self._validate_matches(matches)
