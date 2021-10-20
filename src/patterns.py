@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from typing import overload
-from . import words
+from .words import Word
 
 class MatchFailed(Exception):
     pass
 
 @overload
-def advance(word: words.Word, length: int, start: int, stop: None) -> tuple[int, None]:
+def advance(word: Word, length: int, start: int, stop: None) -> tuple[int, None]:
     ...
 @overload
-def advance(word: words.Word, length: int, start: None, stop: int) -> tuple[None, int]:
+def advance(word: Word, length: int, start: None, stop: int) -> tuple[None, int]:
     ...
 def advance(word, length, start=None, stop=None):
     if (start is None) == (stop is None):
@@ -26,7 +26,7 @@ def advance(word, length, start=None, stop=None):
             raise MatchFailed()
 
 
-def get_index(word: words.Word, start: int|None=None, stop: int|None=None) -> int:
+def get_index(word: Word, start: int|None=None, stop: int|None=None) -> int:
     if (start is None) == (stop is None):
         raise TypeError('exactly one of start and stop must be given.')
     elif start is not None:
@@ -59,17 +59,17 @@ class Element:
         else:
             return NotImplemented
 
-    def match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> int:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         else:
             raise MatchFailed()
 
 class CharacterMixin:
-    def _match(self, word: words.Word, index: int) -> bool:
+    def _match(self, word: Word, index: int) -> bool:
         return False
 
-    def match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> int:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
         index = get_index(word, start=start, stop=stop)
         if self._match(word, index):
             return 1
@@ -84,7 +84,7 @@ class Grapheme(CharacterMixin, Element):
     def __str__(self) -> str:
         return self.grapheme
 
-    def _match(self, word: words.Word, index: int) -> bool:
+    def _match(self, word: Word, index: int) -> bool:
         return word[index] == self.grapheme
 
 
@@ -93,7 +93,7 @@ class Ditto(CharacterMixin, Element):
     def __str__(self) -> str:
         return '"'
 
-    def _match(self, word: words.Word, index: int) -> bool:
+    def _match(self, word: Word, index: int) -> bool:
         return index and word[index] == word[index-1]
 
 
@@ -107,7 +107,7 @@ class Category(CharacterMixin, Element):
         else:
             return f'[{self.category.name}]'
 
-    def _match(self, word: words.Word, index: int) -> bool:
+    def _match(self, word: Word, index: int) -> bool:
         return word[index] in self.category
         # Note that this will change if sequences become supported in categories
         # Somehow return the index self.category.index(word[index])
@@ -121,10 +121,10 @@ class Wildcard(CharacterMixin, Element):
     def __str__(self) -> str:
         return ('**' if self.extended else '*') + ('' if self.greedy else '?')
 
-    def _match(self, word: words.Word, index: int) -> bool:
+    def _match(self, word: Word, index: int) -> bool:
         return self.extended or word[index] != '#'
 
-    def _match_pattern(self, pattern: 'Pattern', word: words.Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
         length = self.match(word, start=start, stop=stop)
         start, stop = advance(word, length, start=start, stop=stop)
 
@@ -144,7 +144,7 @@ class Wildcard(CharacterMixin, Element):
 class SubpatternMixin:
     pattern: 'Pattern'
 
-    def match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> int:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
         return self.pattern._match(word, start=start, stop=stop)
 
 
@@ -155,7 +155,7 @@ class Repetition(SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'{{{self.number}}}'
 
-    def _match_pattern(self, pattern: 'Pattern', word: words.Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
         length = 0
         for _ in range(self.number):
             length += self.match(word, *advance(word, length, start, stop))
@@ -169,7 +169,7 @@ class WildcardRepetition(SubpatternMixin, Element):
     def __str__(self) -> str:
         return '{*}' if self.greedy else '{*?}'
 
-    def _match_pattern(self, pattern: 'Pattern', word: words.Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
         length = self.match(word, start=start, stop=stop)
         start, stop = advance(word, length, start=start, stop=stop)
 
@@ -192,7 +192,7 @@ class Optional(SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('' if self.greedy else '?')
 
-    def _match_pattern(self, pattern: 'Pattern', word: words.Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
         if self.greedy:
             try:
                 length = self.match(word, start=start, stop=stop)
@@ -228,7 +228,7 @@ class Pattern:
     def __bool__(self) -> bool:
         return bool(self.elements)
 
-    def resolve(self, target: words.Word|None=None) -> 'Pattern':
+    def resolve(self, target: Word|None=None) -> 'Pattern':
         # Will need to handle category indexing too
         if target is not None:
             target = [Grapheme(phone) for phone in target]
@@ -260,7 +260,7 @@ class Pattern:
                 raise TypeError(f'cannot convert {type(elem).__name__!r} to phones')
         return phones
 
-    def _match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> int:
+    def _match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is not None:
@@ -285,7 +285,7 @@ class Pattern:
 
         return length
 
-    def match(self, word: words.Word, start: int|None=None, stop: int|None=None) -> slice:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> slice:
         try:
             length = self._match(word, start, stop)
             if start is not None:
