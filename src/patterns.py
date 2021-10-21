@@ -228,23 +228,24 @@ class Pattern:
     def __bool__(self) -> bool:
         return bool(self.elements)
 
-    def resolve(self, target: Word|None=None) -> 'Pattern':
-        # Will need to handle category indexing too
-        if target is not None:
-            target = [Grapheme(phone) for phone in target]
-            rtarget = reversed(target)
-            elements = []
-            for element in self.elements:
-                if isinstance(element, TargetRef):
-                    if element == '%':
-                        elements.extend(target)
-                    else:
-                        elements.extend(rtarget)
-                else:
-                    elements.append(element)
-            return Pattern(elements)
-        else:
-            return self
+    def resolve(self, target: Word) -> 'Pattern':
+        target = [Grapheme(phone) for phone in target]
+        rtarget = reversed(target)
+
+        elements = []
+        for element in self.elements:
+            if isinstance(element, TargetRef):
+                elements.extend(target if element == '%' else rtarget)
+            elif isinstance(element, Repetition):
+                elements.append(Repetition(element.pattern.resolve(target), element.number))
+            elif isinstance(element, WildcardRepetition):
+                elements.append(WildcardRepetition(element.pattern.resolve(target), element.greedy))
+            elif isinstance(element, Optional):
+                elements.append(Optional(element.pattern.resolve(target), element.greedy))
+            else:
+                elements.append(element)
+
+        return Pattern(elements)
 
     def as_phones(self, last_phone: str):
         phones = []

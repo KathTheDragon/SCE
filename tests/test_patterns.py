@@ -291,10 +291,6 @@ def test_Pattern_is_truthy_iff_not_empty():
     assert Pattern([Grapheme('a')])
 
 # Pattern.resolve
-def test_Pattern_resolve_returns_self_with_no_target():
-    pattern = Pattern([])
-    assert pattern.resolve() is pattern
-
 def test_Pattern_resolve_replaces_percent_with_target():
     pattern = Pattern([TargetRef(1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('a'), Grapheme('b')])
@@ -302,6 +298,18 @@ def test_Pattern_resolve_replaces_percent_with_target():
 def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
+
+def test_Pattern_resolve_recurses_into_Repetition_WildcardRepetition_Optional():
+    pattern = Pattern([
+        Repetition(Pattern([TargetRef(1)]), 3),
+        WildcardRepetition(Pattern([TargetRef(1)]), True),
+        Optional(Pattern([TargetRef(1)]), True),
+    ])
+    assert pattern.resolve('a') == Pattern([
+        Repetition(Pattern([Grapheme('a')]), 3),
+        WildcardRepetition(Pattern([Grapheme('a')]), True),
+        Optional(Pattern([Grapheme('a')]), True),
+    ])
 
 # Pattern.as_phones
 def test_Pattern_as_phones_converts_Grapheme_to_string():
