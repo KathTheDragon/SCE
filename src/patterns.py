@@ -127,20 +127,20 @@ class Category(Element):
 class WildcardMixin:
     greedy: bool
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
         start, stop = advance(word, length, start=start, stop=stop)
 
         if self.greedy:
             try:
-                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+                _length, catixes = self.match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
                 _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
         else:
             try:
                 _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+                _length, catixes = self.match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
         return length + _length, catixes
 
 
@@ -170,7 +170,7 @@ class Repetition(SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern}){{{self.number}}}'
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         length = 0
         for _ in range(self.number):
             _length, catixes = self.match(word, *advance(word, length, start, stop), catixes=catixes)
@@ -192,7 +192,7 @@ class Optional(SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('' if self.greedy else '?')
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         if self.greedy:
             try:
                 length, _catixes = self.match(word, start=start, stop=stop, catixes=catixes)
@@ -269,9 +269,9 @@ class Pattern:
         elif start is not None:
             length = 0
             for i, element in enumerate(self.elements):
-                if hasattr(element, '_match_pattern'):
+                if hasattr(element, 'match_pattern'):
                     pattern = Pattern(self.elements[i+1:])
-                    _length, catixes = element._match_pattern(pattern, word, start=start+length, catixes=catixes)
+                    _length, catixes = element.match_pattern(pattern, word, start=start+length, catixes=catixes)
                     length += _length
                     break
                 else:
@@ -281,9 +281,9 @@ class Pattern:
         else:  # stop is not None
             length = 0
             for i, element in reversed(list(enumerate(self.elements))):
-                if hasattr(element, '_match_pattern'):
+                if hasattr(element, 'match_pattern'):
                     pattern = Pattern(self.elements[:i])
-                    _length, catixes = element._match_pattern(pattern, word, stop=stop-length, catixes=catixes)
+                    _length, catixes = element.match_pattern(pattern, word, stop=stop-length, catixes=catixes)
                     length += _length
                     break
                 else:
