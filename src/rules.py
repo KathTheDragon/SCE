@@ -28,15 +28,16 @@ class Target:
     pattern: Pattern
     indices: list[int]
 
-    def match(self, word: Word) -> list[slice]:
-        matches = list(filter(None, (self.pattern.match(word, start=start) for start in range(len(word)))))
+    def match(self, word: Word) -> list[tuple[slice, dict[int, int]]]:
+        func = lambda i: i[0] is not None
+        matches = list(filter(func, (self.pattern.match(word, start=start) for start in range(len(word)))))
         if self.indices:
             matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
 
         if not matches:
             logger.debug('>> No matches for this target')
         elif self.pattern or self.indices:
-            for match in matches:
+            for match, _ in matches:
                 logger.debug(f'>> Target matched {str(word[match])!r} at {match.start}')
         else:
             logger.debug(f'>> Null target matched all positions in range 1..{len(word)}')
@@ -49,10 +50,10 @@ class LocalEnvironment:
     left: Pattern
     right: Pattern
 
-    def match(self, word: Word, match: slice) -> bool:
+    def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
-        left = self.left.resolve(target=target).match(word, stop=match.start) is not None
-        right = self.right.resolve(target=target).match(word, start=match.stop) is not None
+        left = self.left.resolve(target).match(word, stop=match.start, catixes=catixes)[0] is not None
+        right = self.right.resolve(target).match(word, start=match.stop, catixes=catixes)[0] is not None
         return left and right
 
 
@@ -61,21 +62,21 @@ class GlobalEnvironment:
     pattern: Pattern
     indices: list[int]
 
-    def match(self, word: Word, match: slice) -> bool:
+    def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
-        pattern = self.pattern.resolve(target=target)
+        pattern = self.pattern.resolve(target)
         if not self.indices:
             indices = range(len(word))
         else:
             length = len(word)
             indices = ((index+length) if index < 0 else index for index in self.indices)
-        return any(pattern.match(word, start=index) is not None for index in indices)
+        return any(pattern.match(word, start=index, catixes=catixes)[0] is not None for index in indices)
 
 Environment = LocalEnvironment | GlobalEnvironment
 
 
-def match_environments(environments: list[list[Environment]], word: Word, match: slice) -> bool:
-    return any(all(environment.match(word, match) for environment in and_environments) for and_environments in environments)
+def match_environments(environments: list[list[Environment]], word: Word, match: slice, catixes: dict[int, int]) -> bool:
+    return any(all(environment.match(word, match, catixes) for environment in and_environments) for and_environments in environments)
 
 
 @dataclass
@@ -84,11 +85,11 @@ class Predicate:
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
-    def match(self, word: Word, match: slice) -> bool:
-        if match_environments(self.exceptions, word, match):
+    def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
+        if match_environments(self.exceptions, word, match, catixes):
             logger.debug('>> Matched an exception')
             return False
-        elif match_environments(self.conditions, word, match) or not self.conditions:
+        elif match_environments(self.conditions, word, match, catixes) or not self.conditions:
             logger.debug('>> Matched a condition')
             return True
         else:
@@ -131,26 +132,26 @@ class Rule(BaseRule):
     def __str__(self) -> str:
         return self.rule
 
-    def _get_matches(self, word: Word) -> list[tuple[slice, int]]:
+    def _get_matches(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
         logger.debug('Begin matching targets')
         matches = []
         for i, target in enumerate(self.targets):
             logger.debug(f'> Matching {str(target)!r}')
-            matches.extend([(match, i) for match in target.match(word)])
+            matches.extend([(match, catixes, i) for match, catixes in target.match(word)])
         if not matches:
             logger.debug('No matches')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoMatchesFound()
         if self.flags.rtl:
             logger.debug('Sorting right-to-left')
-            matches.sort(key=lambda p: (-p[0].stop, p[1]))
+            matches.sort(key=lambda p: (-p[0].stop, p[2]))
         else:
             logger.debug('Sorting left-to-right')
-            matches.sort(key=lambda p: (p[0].start, p[1]))
-        logger.debug(f'Final matches at positions {[match.start for match, _ in matches]}')
+            matches.sort(key=lambda p: (p[0].start, p[2]))
+        logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
         return matches
 
-    def _validate_matches(self, matches: list[tuple[slice, int]]) -> list[tuple[slice, Pattern]]:
+    def _validate_matches(self, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, Pattern]]:
         logger.debug('Validate matches')
         changes = []
         last_match = None
@@ -160,18 +161,18 @@ class Rule(BaseRule):
         else:
             def overlaps(match: slice, last_match: slice) -> bool:
                 return match.start < last_match.stop
-        for match, i in matches:
+        for match, catixes, i in matches:
             logger.debug(f'> Validating match at {match.start}')
             # Check overlap
             if last_match is not None and overlaps(match, last_match):
                 logger.debug('>> Match overlaps with last validated match')
                 continue
             for predicate in self.predicates:
-                if predicate.match(word, match):
+                if predicate.match(word, match, catixes):
                     logger.debug('>> Match validated, getting replacement')
                     last_match = match
                     replacement = predicate.results[i % len(predicate.results)]
-                    replacement = replacement.resolve(word[match])
+                    replacement = replacement.resolve(word[match], catixes)
                     logger.debug(f'>>> Replacement is {str(replacement)!r}')
                     changes.append((match, replacement))
                     break

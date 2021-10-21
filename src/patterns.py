@@ -59,7 +59,7 @@ class Element:
         else:
             return NotImplemented
 
-    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> tuple[int, dict[int, int]]:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         else:
@@ -69,10 +69,10 @@ class CharacterMixin:
     def _match(self, word: Word, index: int) -> bool:
         return False
 
-    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         index = get_index(word, start=start, stop=stop)
         if self._match(word, index):
-            return 1
+            return 1, catixes
         else:
             raise MatchFailed()
 
@@ -98,8 +98,9 @@ class Ditto(CharacterMixin, Element):
 
 
 @dataclass(repr=False, eq=False)
-class Category(CharacterMixin, Element):
+class Category(Element):
     category: 'cats.Category'
+    subscript: int | None
 
     def __str__(self) -> str:
         if self.category.name is None:
@@ -107,10 +108,19 @@ class Category(CharacterMixin, Element):
         else:
             return f'[{self.category.name}]'
 
-    def _match(self, word: Word, index: int) -> bool:
-        return word[index] in self.category
+    def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         # Note that this will change if sequences become supported in categories
-        # Somehow return the index self.category.index(word[index])
+        if self.subscript is None:
+            if word[index] in self.category:
+                return 1, catixes
+        elif self.subscript in catixes:
+            if word[index] == self.category[catixes[self.subscript]]:
+                return 1, catixes
+        else:
+            if word[index] in self.category:
+                return 1, catixes | {self.subscript: self.category.index(word[index])}
+
+        raise MatchFailed()
 
 
 @dataclass(repr=False, eq=False)
@@ -124,28 +134,29 @@ class Wildcard(CharacterMixin, Element):
     def _match(self, word: Word, index: int) -> bool:
         return self.extended or word[index] != '#'
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
-        length = self.match(word, start=start, stop=stop)
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
         start, stop = advance(word, length, start=start, stop=stop)
 
         if self.greedy:
             try:
-                return length + self._match_pattern(pattern, word, start=start, stop=stop)
+                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                return length + pattern._match(word, start=start, stop=stop)
+                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
         else:
             try:
-                return length + pattern._match(word, start=start, stop=stop)
+                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                return length + self._match_pattern(pattern, word, start=start, stop=stop)
+                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+        return length + _length, catixes
 
 
 @dataclass(repr=False, eq=False)
 class SubpatternMixin:
     pattern: 'Pattern'
 
-    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
-        return self.pattern._match(word, start=start, stop=stop)
+    def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        return self.pattern._match(word, start=start, stop=stop, catixes=catixes)
 
 
 @dataclass(repr=False, eq=False)
@@ -153,13 +164,15 @@ class Repetition(SubpatternMixin, Element):
     number: int
 
     def __str__(self) -> str:
-        return f'{{{self.number}}}'
+        return f'({self.pattern}){{{self.number}}}'
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         length = 0
         for _ in range(self.number):
-            length += self.match(word, *advance(word, length, start, stop))
-        return length + pattern._match(word, *advance(word, length, start, stop))
+            _length, catixes = self.match(word, *advance(word, length, start, stop), catixes=catixes)
+            length += _length
+        _length, catixes = pattern._match(word, *advance(word, length, start, stop), catixes=catixes)
+        return length + _length, catixes
 
 
 @dataclass(repr=False, eq=False)
@@ -167,22 +180,23 @@ class WildcardRepetition(SubpatternMixin, Element):
     greedy: bool
 
     def __str__(self) -> str:
-        return '{*}' if self.greedy else '{*?}'
+        return f'({self.pattern})' + ('{*}' if self.greedy else '{*?}')
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
-        length = self.match(word, start=start, stop=stop)
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
         start, stop = advance(word, length, start=start, stop=stop)
 
         if self.greedy:
             try:
-                return length + self._match_pattern(pattern, word, start=start, stop=stop)
+                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                return length + pattern._match(word, start=start, stop=stop)
+                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
         else:
             try:
-                return length + pattern._match(word, start=start, stop=stop)
+                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                return length + self._match_pattern(pattern, word, start=start, stop=stop)
+                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+        return length + _length, catixes
 
 
 @dataclass(repr=False, eq=False)
@@ -192,19 +206,21 @@ class Optional(SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('' if self.greedy else '?')
 
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None) -> int:
+    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         if self.greedy:
             try:
-                length = self.match(word, start=start, stop=stop)
-                return length + pattern._match(word, *advance(word, length, start, stop))
+                length, _catixes = self.match(word, start=start, stop=stop, catixes=catixes)
+                _length, _catixes = pattern._match(word, *advance(word, length, start, stop), catixes=_catixes)
+                return length + _length, _catixes
             except MatchFailed:
-                return pattern._match(word, start=start, stop=stop)
+                return pattern._match(word, start=start, stop=stop, catixes=catixes)
         else:
             try:
-                return pattern._match(word, start=start, stop=stop)
+                return pattern._match(word, start=start, stop=stop, catixes=catixes)
             except MatchFailed:
-                length = self.match(word, start=start, stop=stop)
-                return length + pattern._match(word, *advance(word, length, start, stop))
+                length, _catixes = self.match(word, start=start, stop=stop, catixes=catixes)
+                _length, _catixes = pattern._match(word, *advance(word, length, start, stop), catixes=_catixes)
+                return length + _length, _catixes
 
 
 @dataclass(repr=False, eq=False)
@@ -229,13 +245,13 @@ class Pattern:
         return bool(self.elements)
 
     def resolve(self, target: Word) -> 'Pattern':
-        target = [Grapheme(phone) for phone in target]
-        rtarget = reversed(target)
+        _target = [Grapheme(phone) for phone in target]
+        _rtarget = reversed(_target)
 
         elements = []
         for element in self.elements:
             if isinstance(element, TargetRef):
-                elements.extend(target if element == '%' else rtarget)
+                elements.extend(_target if element == '%' else _rtarget)
             elif isinstance(element, Repetition):
                 elements.append(Repetition(element.pattern.resolve(target), element.number))
             elif isinstance(element, WildcardRepetition):
@@ -261,7 +277,7 @@ class Pattern:
                 raise TypeError(f'cannot convert {type(elem).__name__!r} to phones')
         return phones
 
-    def _match(self, word: Word, start: int|None=None, stop: int|None=None) -> int:
+    def _match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is not None:
@@ -269,29 +285,33 @@ class Pattern:
             for i, element in enumerate(self.elements):
                 if hasattr(element, '_match_pattern'):
                     pattern = Pattern(self.elements[i+1:])
-                    length += element._match_pattern(pattern, word, start=start+length)
+                    _length, catixes = element._match_pattern(pattern, word, start=start+length, catixes=catixes)
+                    length += _length
                     break
                 else:
-                    length += element.match(word, start=start+length)
+                    _length, catixes = element.match(word, start=start+length, catixes=catixes)
+                    length += _length
 
         else:  # stop is not None
             length = 0
             for i, element in reversed(list(enumerate(self.elements))):
                 if hasattr(element, '_match_pattern'):
                     pattern = Pattern(self.elements[:i])
-                    length += element._match_pattern(pattern, word, stop=stop-length)
+                    _length, catixes = element._match_pattern(pattern, word, stop=stop-length, catixes=catixes)
+                    length += _length
                     break
                 else:
-                    length += element.match(word, stop=stop-length)
+                    _length, catixes = element.match(word, stop=stop-length, catixes=catixes)
+                    length += _length
 
-        return length
+        return length, catixes
 
-    def match(self, word: Word, start: int|None=None, stop: int|None=None) -> slice:
+    def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[slice|None, dict[int, int]]:
         try:
-            length = self._match(word, start, stop)
+            length, catixes = self._match(word, start, stop, catixes)
             if start is not None:
-                return Match(start, start+length)
+                return Match(start, start+length), catixes
             else:  # stop is not None
-                return Match(stop-length, stop)
+                return Match(stop-length, stop), catixes
         except MatchFailed:
-            return None
+            return None, {}

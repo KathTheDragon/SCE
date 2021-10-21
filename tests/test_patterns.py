@@ -32,9 +32,9 @@ class MockPattern(Pattern):
     elements: list[Element] = field(init=False, default_factory=list)
     length: int
 
-    def _match(self, word, start=None, stop=None):
+    def _match(self, word, start=None, stop=None, catixes={}):
         advance(word, self.length, start, stop)
-        return self.length
+        return self.length, catixes
 
 ## Functions ##
 
@@ -117,9 +117,9 @@ def test_CharacterMixin_match_raises_MatchFailed_when_doesnt_match():
     with raises(MatchFailed):
         MockCharacterElement(matches=False).match(['a'], start=0)
 
-def test_CharacterMixin_match_returns_one_when_does_match():
-    assert MockCharacterElement(matches=True).match(['a'], start=0) == 1
-    assert MockCharacterElement(matches=True).match(['a'], stop=1) == 1
+def test_CharacterMixin_match_returns_1_and_catixes_when_does_match():
+    assert MockCharacterElement(matches=True).match(['a'], start=0, catixes={1: 2}) == (1, {1: 2})
+    assert MockCharacterElement(matches=True).match(['a'], stop=1, catixes={1: 2}) == (1, {1: 2})
 
 ## Grapheme ##
 
@@ -177,38 +177,38 @@ def test_Wildcard_matches_at_least_one_regardless_of_greedy():
     pattern = MockPattern(length=1)
     word = ['#', '#']
     with raises(MatchFailed):
-        Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0)
+        Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2})
     with raises(MatchFailed):
-        Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0)
+        Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2})
 
     word = ['a']
     with raises(MatchFailed):
-        Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0)
+        Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2})
     with raises(MatchFailed):
-        Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0)
+        Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2})
 
 def test_Wildcard_with_greedy_True_matches_longest_run():
     pattern = MockPattern(length=1)
     word = ['a', 'a', 'a', 'a', '#', '#']
-    assert Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0) == 5
-    assert Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, stop=4) == 4
-    assert Wildcard(greedy=True, extended=True)._match_pattern(pattern, word, start=0) == 6
-    assert Wildcard(greedy=True, extended=True)._match_pattern(pattern, word, stop=6) == 6
+    assert Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2}) == (5, {1: 2})
+    assert Wildcard(greedy=True, extended=False)._match_pattern(pattern, word, stop=4, catixes={1: 2}) == (4, {1: 2})
+    assert Wildcard(greedy=True, extended=True)._match_pattern(pattern, word, start=0, catixes={1: 2}) == (6, {1: 2})
+    assert Wildcard(greedy=True, extended=True)._match_pattern(pattern, word, stop=6, catixes={1: 2}) == (6, {1: 2})
 
 def test_Wildcard_with_greedy_False_matches_shortest_run():
     pattern = MockPattern(length=1)
     word = ['a', 'a', 'a', 'a', '#', '#']
-    assert Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0) == 2
-    assert Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, stop=4) == 2
-    assert Wildcard(greedy=False, extended=True)._match_pattern(pattern, word, start=0) == 2
-    assert Wildcard(greedy=False, extended=True)._match_pattern(pattern, word, stop=6) == 2
+    assert Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, start=0, catixes={1: 2}) == (2, {1: 2})
+    assert Wildcard(greedy=False, extended=False)._match_pattern(pattern, word, stop=4, catixes={1: 2}) == (2, {1: 2})
+    assert Wildcard(greedy=False, extended=True)._match_pattern(pattern, word, start=0, catixes={1: 2}) == (2, {1: 2})
+    assert Wildcard(greedy=False, extended=True)._match_pattern(pattern, word, stop=6, catixes={1: 2}) == (2, {1: 2})
 
 ## SubpatternMixin ##
 
 def test_SubpatternMixin_match_returns_length_of_pattern():
     word = ['a', 'a']
-    assert MockPatternElement(length=2).match(word, start=0) == 2
-    assert MockPatternElement(length=2).match(word, stop=2) == 2
+    assert MockPatternElement(length=2).match(word, start=0, catixes={1: 2}) == (2, {1: 2})
+    assert MockPatternElement(length=2).match(word, stop=2, catixes={1: 2}) == (2, {1: 2})
 
 ## Repetition ##
 
@@ -217,12 +217,12 @@ def test_Repetition_matches_pattern_number_times():
     element = Repetition(pattern=subpattern, number=2)
     pattern = MockPattern(length=1)
     word = ['a']*5
-    assert element._match_pattern(pattern, word, start=0) == 5
-    assert element._match_pattern(pattern, word, stop=5) == 5
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (5, {1: 2})
+    assert element._match_pattern(pattern, word, stop=5, catixes={1: 2}) == (5, {1: 2})
 
     word = ['a']*4
     with raises(MatchFailed):
-        element._match_pattern(pattern, word, start=0)
+        element._match_pattern(pattern, word, start=0, catixes={1: 2})
 
 ## WildcardRepetition ##
 
@@ -233,31 +233,31 @@ def test_WildcardRepetition_matches_at_least_one_regardless_of_greedy():
     pattern = MockPattern(length=1)
     word = ['a']
     with raises(MatchFailed):
-        element_greedy._match_pattern(pattern, word, start=0)
+        element_greedy._match_pattern(pattern, word, start=0, catixes={1: 2})
     with raises(MatchFailed):
-        element_nongreedy._match_pattern(pattern, word, start=0)
+        element_nongreedy._match_pattern(pattern, word, start=0, catixes={1: 2})
 
     word = ['a', 'a']
     with raises(MatchFailed):
-        element_greedy._match_pattern(pattern, word, start=0)
+        element_greedy._match_pattern(pattern, word, start=0, catixes={1: 2})
     with raises(MatchFailed):
-        element_nongreedy._match_pattern(pattern, word, start=0)
+        element_nongreedy._match_pattern(pattern, word, start=0, catixes={1: 2})
 
 def test_WildcardRepetition_with_greedy_True_matches_longest_run():
     subpattern = MockPattern(length=2)
     element = WildcardRepetition(pattern=subpattern, greedy=True)
     pattern = MockPattern(length=1)
     word = ['a']*6
-    assert element._match_pattern(pattern, word, start=0) == 5
-    assert element._match_pattern(pattern, word, stop=6) == 5
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (5, {1: 2})
+    assert element._match_pattern(pattern, word, stop=6, catixes={1: 2}) == (5, {1: 2})
 
 def test_WildcardRepetition_with_greedy_False_matches_shortest_run():
     subpattern = MockPattern(length=2)
     element = WildcardRepetition(pattern=subpattern, greedy=False)
     pattern = MockPattern(length=1)
     word = ['a']*6
-    assert element._match_pattern(pattern, word, start=0) == 3
-    assert element._match_pattern(pattern, word, stop=6) == 3
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (3, {1: 2})
+    assert element._match_pattern(pattern, word, stop=6, catixes={1: 2}) == (3, {1: 2})
 
 ## Optional ##
 
@@ -266,24 +266,24 @@ def test_Optional_with_greedy_True_matches_self_if_possible():
     element = Optional(pattern=subpattern, greedy=True)
     pattern = MockPattern(length=1)
     word = ['a']
-    assert element._match_pattern(pattern, word, start=0) == 1
-    assert element._match_pattern(pattern, word, stop=1) == 1
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (1, {1: 2})
+    assert element._match_pattern(pattern, word, stop=1, catixes={1: 2}) == (1, {1: 2})
 
     word = ['a', 'a']
-    assert element._match_pattern(pattern, word, start=0) == 1
-    assert element._match_pattern(pattern, word, stop=2) == 1
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (1, {1: 2})
+    assert element._match_pattern(pattern, word, stop=2, catixes={1: 2}) == (1, {1: 2})
 
     word = ['a', 'a', 'a']
-    assert element._match_pattern(pattern, word, start=0) == 3
-    assert element._match_pattern(pattern, word, stop=3) == 3
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (3, {1: 2})
+    assert element._match_pattern(pattern, word, stop=3, catixes={1: 2}) == (3, {1: 2})
 
 def test_Optional_with_greedy_False_doesnt_match_self_if_possible():
     subpattern = MockPattern(length=2)
     element = Optional(pattern=subpattern, greedy=False)
     pattern = MockPattern(length=1)
     word = ['a', 'a', 'a']
-    assert element._match_pattern(pattern, word, start=0) == 1
-    assert element._match_pattern(pattern, word, stop=3) == 1
+    assert element._match_pattern(pattern, word, start=0, catixes={1: 2}) == (1, {1: 2})
+    assert element._match_pattern(pattern, word, stop=3, catixes={1: 2}) == (1, {1: 2})
 
 ## Pattern ##
 def test_Pattern_is_truthy_iff_not_empty():
@@ -359,14 +359,14 @@ def test_Pattern_match_sums_lengths_of_element_matches():
     patt_elem = MockPatternElement(3)
     pattern = Pattern([char_elem, char_elem, patt_elem, char_elem, patt_elem])
     word = ['a']*10
-    assert pattern._match(word, start=0) == 9
-    assert pattern._match(word, stop=10) == 9
+    assert pattern._match(word, start=0, catixes={1: 2}) == (9, {1: 2})
+    assert pattern._match(word, stop=10, catixes={1: 2}) == (9, {1: 2})
 
 # Pattern.match
 def test_Pattern_match():
     pattern = MockPattern(length=2)
     word = ['a', 'a']
-    assert pattern.match(word, start=0) == Match(0, 2)
-    assert pattern.match(word, stop=2) == Match(0, 2)
-    assert pattern.match(word, start=1) is None
-    assert pattern.match(word, stop=1) is None
+    assert pattern.match(word, start=0, catixes={1: 2}) == (Match(0, 2), {1: 2})
+    assert pattern.match(word, stop=2, catixes={1: 2}) == (Match(0, 2), {1: 2})
+    assert pattern.match(word, start=1, catixes={1: 2}) == (None, {})
+    assert pattern.match(word, stop=1, catixes={1: 2}) == (None, {})
