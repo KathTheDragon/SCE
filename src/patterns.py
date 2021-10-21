@@ -124,15 +124,8 @@ class Category(Element):
 
 
 @dataclass(repr=False, eq=False)
-class Wildcard(CharacterMixin, Element):
+class WildcardMixin:
     greedy: bool
-    extended: bool
-
-    def __str__(self) -> str:
-        return ('**' if self.extended else '*') + ('' if self.greedy else '?')
-
-    def _match(self, word: Word, index: int) -> bool:
-        return self.extended or word[index] != '#'
 
     def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
@@ -149,6 +142,17 @@ class Wildcard(CharacterMixin, Element):
             except MatchFailed:
                 _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
         return length + _length, catixes
+
+
+@dataclass(repr=False, eq=False)
+class Wildcard(WildcardMixin, CharacterMixin, Element):
+    extended: bool
+
+    def __str__(self) -> str:
+        return ('**' if self.extended else '*') + ('' if self.greedy else '?')
+
+    def _match(self, word: Word, index: int) -> bool:
+        return self.extended or word[index] != '#'
 
 
 @dataclass(repr=False, eq=False)
@@ -176,27 +180,9 @@ class Repetition(SubpatternMixin, Element):
 
 
 @dataclass(repr=False, eq=False)
-class WildcardRepetition(SubpatternMixin, Element):
-    greedy: bool
-
+class WildcardRepetition(WildcardMixin, SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('{*}' if self.greedy else '{*?}')
-
-    def _match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
-        length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
-        start, stop = advance(word, length, start=start, stop=stop)
-
-        if self.greedy:
-            try:
-                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
-            except MatchFailed:
-                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
-        else:
-            try:
-                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
-            except MatchFailed:
-                _length, catixes = self._match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
-        return length + _length, catixes
 
 
 @dataclass(repr=False, eq=False)
