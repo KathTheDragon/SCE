@@ -267,6 +267,12 @@ def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
 
+@xfail(reason='module cats is not yet implemented')
+def test_Pattern_resolve_replaces_category_with_grapheme_if_subscript_in_catixes():
+    pattern = Pattern([Category(cats.Category(['a', 'b', 'c']), 1)])
+    assert pattern.resolve('ab', {1: 2}) == Pattern([Grapheme('c')])
+    assert pattern.resolve('ab', {2: 3}) == pattern
+
 def test_Pattern_resolve_recurses_into_Repetition_WildcardRepetition_Optional():
     pattern = Pattern([
         Repetition(Pattern([TargetRef(1)]), 3),

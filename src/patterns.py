@@ -230,7 +230,7 @@ class Pattern:
     def __bool__(self) -> bool:
         return bool(self.elements)
 
-    def resolve(self, target: Word) -> 'Pattern':
+    def resolve(self, target: Word, catixes: dict[int, int]={}) -> 'Pattern':
         _target = [Grapheme(phone) for phone in target]
         _rtarget = reversed(_target)
 
@@ -238,12 +238,17 @@ class Pattern:
         for element in self.elements:
             if isinstance(element, TargetRef):
                 elements.extend(_target if element == '%' else _rtarget)
+            elif isinstance(element, Category):
+                if element.subscript in catixes:
+                    elements.append(Grapheme(element.category[catixes[element.subscript]]))
+                else:
+                    elements.append(element)
             elif isinstance(element, Repetition):
-                elements.append(Repetition(element.pattern.resolve(target), element.number))
+                elements.append(Repetition(element.pattern.resolve(target, catixes), element.number))
             elif isinstance(element, WildcardRepetition):
-                elements.append(WildcardRepetition(element.pattern.resolve(target), element.greedy))
+                elements.append(WildcardRepetition(element.pattern.resolve(target, catixes), element.greedy))
             elif isinstance(element, Optional):
-                elements.append(Optional(element.pattern.resolve(target), element.greedy))
+                elements.append(Optional(element.pattern.resolve(target, catixes), element.greedy))
             else:
                 elements.append(element)
 
