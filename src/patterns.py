@@ -124,23 +124,30 @@ class Category(Element):
 
 
 @dataclass(repr=False, eq=False)
-class WildcardMixin:
+class BranchMixin:
     greedy: bool
 
-    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
-        length, catixes = self.match(word, start=start, stop=stop, catixes=catixes)
-        start, stop = advance(word, length, start=start, stop=stop)
-
+    def match_pattern(self, pattern: 'Pattern', word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         if self.greedy:
             try:
-                _length, catixes = self.match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+                return self._match_branch(pattern, word, start, stop, catixes)
             except MatchFailed:
-                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
+                return pattern._match(word, start, stop, catixes)
         else:
             try:
-                _length, catixes = pattern._match(word, start=start, stop=stop, catixes=catixes)
-            except MatchFailed:
-                _length, catixes = self.match_pattern(pattern, word, start=start, stop=stop, catixes=catixes)
+                return pattern._match(word, start, stop, catixes)
+            except:
+                return self._match_branch(pattern, word, start, stop, catixes)
+
+
+@dataclass(repr=False, eq=False)
+class WildcardMixin(BranchMixin):
+    def _match_branch(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        return self.match_pattern(pattern, word, start, stop, catixes)
+
+    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        length, catixes = self.match(word, start, stop, catixes)
+        _length, catixes = super().match_pattern(pattern, word, *advance(word, length, start, stop), catixes)
         return length + _length, catixes
 
 
@@ -186,27 +193,14 @@ class WildcardRepetition(WildcardMixin, SubpatternMixin, Element):
 
 
 @dataclass(repr=False, eq=False)
-class Optional(SubpatternMixin, Element):
-    greedy: bool
-
+class Optional(BranchMixin, SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('' if self.greedy else '?')
 
-    def match_pattern(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
-        if self.greedy:
-            try:
-                length, _catixes = self.match(word, start=start, stop=stop, catixes=catixes)
-                _length, _catixes = pattern._match(word, *advance(word, length, start, stop), catixes=_catixes)
-                return length + _length, _catixes
-            except MatchFailed:
-                return pattern._match(word, start=start, stop=stop, catixes=catixes)
-        else:
-            try:
-                return pattern._match(word, start=start, stop=stop, catixes=catixes)
-            except MatchFailed:
-                length, _catixes = self.match(word, start=start, stop=stop, catixes=catixes)
-                _length, _catixes = pattern._match(word, *advance(word, length, start, stop), catixes=_catixes)
-                return length + _length, _catixes
+    def _match_branch(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        length, catixes = self.match(word, start, stop, catixes)
+        _length, catixes = pattern._match(word, *advance(word, length, start, stop), catixes)
+        return length + _length, catixes
 
 
 @dataclass(repr=False, eq=False)
