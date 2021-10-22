@@ -249,7 +249,7 @@ class Pattern:
 
         return Pattern(elements)
 
-    def as_phones(self, last_phone: str):
+    def as_phones(self, last_phone: str) -> list[str]:
         phones = []
         for elem in self.elements:
             if isinstance(elem, Grapheme):
