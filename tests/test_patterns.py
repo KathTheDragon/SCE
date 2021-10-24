@@ -390,11 +390,6 @@ def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
 
-def test_Pattern_resolve_replaces_category_with_grapheme_if_subscript_in_catixes():
-    pattern = Pattern([Category(cats.Category(['a', 'b', 'c']), 1)])
-    assert pattern.resolve('ab', {1: 2}) == Pattern([Grapheme('c')])
-    assert pattern.resolve('ab', {2: 3}) == pattern
-
 def test_Pattern_resolve_recurses_into_Repetition_WildcardRepetition_Optional():
     pattern = Pattern([
         Repetition(Pattern([TargetRef(1)]), 3),
@@ -421,6 +416,23 @@ def test_Pattern_as_phones_Ditto_copies_previous_string():
 
     pattern = Pattern([Ditto()])
     assert pattern.as_phones('a') == ['a']
+
+def test_Pattern_as_phones_indexes_Category_if_subscript_in_catixes():
+    pattern = Pattern([
+        Category(cats.Category(['a', 'b', 'c']), 1),
+        Category(cats.Category(['d', 'e', 'f']), 2),
+        Category(cats.Category(['g', 'h', 'i']), 1),
+    ])
+    assert pattern.as_phones('', {1: 2, 2: 0}) == ['c', 'd', 'i']
+
+def test_Pattern_as_phones_raises_ValueError_if_Category_subscript_not_in_catixes():
+    pattern = Pattern([
+        Category(cats.Category(['a', 'b', 'c']), 1),
+        Category(cats.Category(['d', 'e', 'f']), 2),
+        Category(cats.Category(['g', 'h', 'i']), 1),
+    ])
+    with raises(ValueError):
+        pattern.as_phones('', {1: 2})
 
 def test_Pattern_as_phones_Repetition_repeats_internal_pattern():
     pattern = Pattern([Repetition(Pattern([Grapheme('a')]), 3)])

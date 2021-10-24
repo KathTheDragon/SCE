@@ -184,7 +184,7 @@ class Rule(BaseRule):
             if predicate.match(word, match, catixes):
                 logger.debug('>> Match validated, getting replacement')
                 replacement = predicate.results[index % len(predicate.results)]
-                replacement = replacement.resolve(word[match], catixes).as_phones(word[match.start-1])
+                replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
                 logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
                 return replacement
         return None

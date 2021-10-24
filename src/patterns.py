@@ -225,7 +225,7 @@ class Pattern:
     def __bool__(self) -> bool:
         return bool(self.elements)
 
-    def resolve(self, target: Word, catixes: dict[int, int]={}) -> 'Pattern':
+    def resolve(self, target: Word) -> 'Pattern':
         _target = [Grapheme(phone) for phone in target]
         _rtarget = reversed(_target)
 
@@ -233,29 +233,29 @@ class Pattern:
         for element in self.elements:
             if isinstance(element, TargetRef):
                 elements.extend(_target if element == '%' else _rtarget)
-            elif isinstance(element, Category):
-                if element.subscript in catixes:
-                    elements.append(Grapheme(element.category[catixes[element.subscript]]))
-                else:
-                    elements.append(element)
             elif isinstance(element, Repetition):
-                elements.append(Repetition(element.pattern.resolve(target, catixes), element.number))
+                elements.append(Repetition(element.pattern.resolve(target), element.number))
             elif isinstance(element, WildcardRepetition):
-                elements.append(WildcardRepetition(element.pattern.resolve(target, catixes), element.greedy))
+                elements.append(WildcardRepetition(element.pattern.resolve(target), element.greedy))
             elif isinstance(element, Optional):
-                elements.append(Optional(element.pattern.resolve(target, catixes), element.greedy))
+                elements.append(Optional(element.pattern.resolve(target), element.greedy))
             else:
                 elements.append(element)
 
         return Pattern(elements)
 
-    def as_phones(self, last_phone: str) -> list[str]:
+    def as_phones(self, last_phone: str, catixes: dict[int, int]={}) -> list[str]:
         phones = []
         for elem in self.elements:
             if isinstance(elem, Grapheme):
                 phones.append(elem.grapheme)
             elif isinstance(elem, Ditto):
                 phones.append(phones[-1] if phones else last_phone)
+            elif isinstance(elem, Category):
+                if elem.subscript in catixes:
+                    phones.append(elem.category[catixes[elem.subscript]])
+                else:
+                    raise ValueError(f'no index for category {str(elem.subscript)!r}')
             elif isinstance(elem, Repetition):
                 for _ in range(elem.number):
                     phones.extend(elem.pattern.as_phones(phones[-1] if phones else last_phone))
