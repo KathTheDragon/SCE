@@ -446,8 +446,6 @@ def test_Pattern_as_phones_Repetition_repeats_internal_pattern():
 
 def test_Pattern_as_phones_disallows_other_element_types():
     with raises(TypeError):
-        Pattern([Category(None)]).as_phones('')
-    with raises(TypeError):
         Pattern([Wildcard(False, False)]).as_phones('')
     with raises(TypeError):
         Pattern([WildcardRepetition(Pattern([]), False)]).as_phones('')
