@@ -384,11 +384,11 @@ def test_Optional_uses_catixes_from_self_match_in_pattern_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
     word = ['a', 'b']
-    assert Optional(subpattern, number=2).match_pattern(pattern, word, start=0) == (2, {1: 0})
+    assert Optional(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (2, {1: 0})
 
     word = ['a', 'c']
     with raises(MatchFailed):
-        Optional(subpattern, number=2).match_pattern(pattern, word, start=0)
+        Optional(subpattern, greedy=True).match_pattern(pattern, word, start=0)
 
 ## Pattern ##
 def test_Pattern_is_truthy_iff_not_empty():
