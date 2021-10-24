@@ -258,7 +258,7 @@ class Pattern:
                     raise ValueError(f'no index for category {str(elem.subscript)!r}')
             elif isinstance(elem, Repetition):
                 for _ in range(elem.number):
-                    phones.extend(elem.pattern.as_phones(phones[-1] if phones else last_phone))
+                    phones.extend(elem.pattern.as_phones(phones[-1] if phones else last_phone, catixes))
             else:
                 raise TypeError(f'cannot convert {type(elem).__name__!r} to phones')
         return phones

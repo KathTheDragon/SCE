@@ -441,6 +441,9 @@ def test_Pattern_as_phones_Repetition_repeats_internal_pattern():
     pattern = Pattern([Repetition(Pattern([Ditto(), Grapheme('b')]), 2)])
     assert pattern.as_phones('a') == ['a', 'b', 'b', 'b']
 
+    pattern = Pattern([Repetition(Pattern([Category(cats.Category(['a', 'b', 'c']), 1)]), 3)])
+    assert pattern.as_phones('', {1: 2}) == ['c', 'c', 'c']
+
 def test_Pattern_as_phones_disallows_other_element_types():
     with raises(TypeError):
         Pattern([Category(None)]).as_phones('')
