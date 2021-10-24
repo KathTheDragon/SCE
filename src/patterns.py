@@ -51,14 +51,6 @@ class Element:
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({str(self)!r})'
 
-    def __eq__(self, other: 'str | Element') -> bool:
-        if isinstance(other, str):
-            return str(self) == other
-        elif type(self) == type(other):
-            return str(self) == str(other)
-        else:
-            return NotImplemented
-
     def match(self, word: Word, start: int|None=None, stop: int|None=None) -> tuple[int, dict[int, int]]:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
@@ -77,7 +69,7 @@ class CharacterMixin:
             raise MatchFailed()
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Grapheme(CharacterMixin, Element):
     grapheme: str
 
@@ -88,7 +80,7 @@ class Grapheme(CharacterMixin, Element):
         return word[index] == self.grapheme
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Ditto(CharacterMixin, Element):
     def __str__(self) -> str:
         return '"'
@@ -97,7 +89,7 @@ class Ditto(CharacterMixin, Element):
         return index and word[index] == word[index-1]
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Category(Element):
     category: 'cats.Category'
     subscript: int | None
@@ -124,7 +116,7 @@ class Category(Element):
         raise MatchFailed()
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class BranchMixin:
     greedy: bool
 
@@ -141,7 +133,7 @@ class BranchMixin:
                 return self._match_branch(pattern, word, start, stop, catixes)
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class WildcardMixin(BranchMixin):
     def _match_branch(self, pattern: 'Pattern', word: Word, start:int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         return self.match_pattern(pattern, word, start, stop, catixes)
@@ -152,7 +144,7 @@ class WildcardMixin(BranchMixin):
         return length + _length, catixes
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Wildcard(WildcardMixin, CharacterMixin, Element):
     extended: bool
 
@@ -163,7 +155,7 @@ class Wildcard(WildcardMixin, CharacterMixin, Element):
         return self.extended or word[index] != '#'
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class SubpatternMixin:
     pattern: 'Pattern'
 
@@ -171,7 +163,7 @@ class SubpatternMixin:
         return self.pattern._match(word, start=start, stop=stop, catixes=catixes)
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Repetition(SubpatternMixin, Element):
     number: int
 
@@ -187,13 +179,13 @@ class Repetition(SubpatternMixin, Element):
         return length + _length, catixes
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class WildcardRepetition(WildcardMixin, SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('{*}' if self.greedy else '{*?}')
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class Optional(BranchMixin, SubpatternMixin, Element):
     def __str__(self) -> str:
         return f'({self.pattern})' + ('' if self.greedy else '?')
@@ -204,7 +196,7 @@ class Optional(BranchMixin, SubpatternMixin, Element):
         return length + _length, catixes
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False)
 class TargetRef(Element):
     direction: int
 
@@ -232,7 +224,7 @@ class Pattern:
         elements = []
         for element in self.elements:
             if isinstance(element, TargetRef):
-                elements.extend(_target if element == '%' else _rtarget)
+                elements.extend(_target if element.direction == 1 else _rtarget)
             elif isinstance(element, Repetition):
                 elements.append(Repetition(element.pattern.resolve(target), element.number))
             elif isinstance(element, WildcardRepetition):
