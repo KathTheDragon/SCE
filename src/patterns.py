@@ -259,28 +259,19 @@ class Pattern:
         if (start is None) == (stop is None):
             raise TypeError('exactly one of start and stop must be given.')
         elif start is not None:
-            length = 0
-            for i, element in enumerate(self.elements):
-                if hasattr(element, 'match_pattern'):
-                    pattern = Pattern(self.elements[i+1:])
-                    _length, catixes = element.match_pattern(pattern, word, start=start+length, catixes=catixes)
-                    length += _length
-                    break
-                else:
-                    _length, catixes = element.match(word, start=start+length, catixes=catixes)
-                    length += _length
-
+            iter_elements = ((element, Pattern(self.elements[i+1:])) for i, element in enumerate(self.elements))
         else:  # stop is not None
-            length = 0
-            for i, element in reversed(list(enumerate(self.elements))):
-                if hasattr(element, 'match_pattern'):
-                    pattern = Pattern(self.elements[:i])
-                    _length, catixes = element.match_pattern(pattern, word, stop=stop-length, catixes=catixes)
-                    length += _length
-                    break
-                else:
-                    _length, catixes = element.match(word, stop=stop-length, catixes=catixes)
-                    length += _length
+            iter_elements = ((element, Pattern(self.elements[:i])) for i, element in reversed(list(enumerate(self.elements))))
+
+        length = 0
+        for element, pattern in iter_elements:
+            if hasattr(element, 'match_pattern'):
+                _length, catixes = element.match_pattern(pattern, word, *advance(word, length, start, stop), catixes)
+                length += _length
+                break
+            else:
+                _length, catixes = element.match(word, *advance(word, length, start, stop), catixes)
+                length += _length
 
         return length, catixes
 
