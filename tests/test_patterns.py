@@ -156,7 +156,6 @@ def test_Ditto_does_match_second_character_of_pair():
 
 ## Category ##
 
-@xfail(reason='module cats is unimplemented')
 def test_Category_without_subscript_matches_any_grapheme_it_contains():
     word = ['a', 'b', 'c', 'd']
     category = Category(cats.Category(['a', 'b']), None)
@@ -167,7 +166,6 @@ def test_Category_without_subscript_matches_any_grapheme_it_contains():
     with raises(MatchFailed):
         category.match(word, start=3, catixes={1: 2})
 
-@xfail(reason='module cats is unimplemented')
 def test_Category_with_subscript_in_catixes_only_matches_indexed_grapheme():
     word = ['a', 'b', 'c', 'd']
     category = Category(cats.Category(['a', 'b', 'c', 'd']), 1)
@@ -179,7 +177,6 @@ def test_Category_with_subscript_in_catixes_only_matches_indexed_grapheme():
     with raises(MatchFailed):
         category.match(word, start=3, catixes={1: 2})
 
-@xfail(reason='module cats is unimplemented')
 def test_Category_with_subscript_not_in_catixes_matches_any_grapheme_it_contains_and_adds_subscript_to_catixes():
     word = ['a', 'b', 'c', 'd']
     category = Category(cats.Category(['a', 'b']), 0)
@@ -219,14 +216,12 @@ def test_WildcardMixin_with_greedy_False_matches_shortest_run():
     assert MockWildcardElement(greedy=False).match_pattern(pattern, word, stop=4, catixes={1: 2}) == (2, {1: 2})
 
 # Using WildcardRepetition in these because it inherits from SubpatternMixin with no overrides
-@xfail(reason='module cats is unimplemented')
 def test_WildcardMixin_adds_catixes_from_self_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = MockPattern(length=1)
     word = ['a', '#']
     assert WildcardRepetition(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (2, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_WildcardMixin_uses_same_catixes_for_multiple_iterations():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = MockPattern(length=1)
@@ -236,14 +231,12 @@ def test_WildcardMixin_uses_same_catixes_for_multiple_iterations():
     word = ['a', 'b', '#']
     assert WildcardRepetition(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (2, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_WildcardMixin_adds_catixes_from_pattern_match():
     subpattern = Pattern([Grapheme('a')])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
     word = ['a', 'a', 'b']
     assert WildcardRepetition(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (3, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_WildcardMixin_uses_catixes_from_self_match_in_pattern_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
@@ -290,14 +283,12 @@ def test_Repetition_matches_pattern_number_times():
     with raises(MatchFailed):
         element.match_pattern(pattern, word, start=0, catixes={1: 2})
 
-@xfail(reason='module cats is unimplemented')
 def test_Repetition_adds_catixes_from_self_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = MockPattern(length=1)
     word = ['a', '#']
     assert Repetition(subpattern, number=1).match_pattern(pattern, word, start=0) == (2, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_Repetition_uses_same_catixes_for_all_iterations():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = MockPattern(length=1)
@@ -308,14 +299,12 @@ def test_Repetition_uses_same_catixes_for_all_iterations():
     with raises(MatchFailed):
         Repetition(subpattern, number=2).match_pattern(pattern, word, start=0)
 
-@xfail(reason='module cats is unimplemented')
 def test_Repetition_adds_catixes_from_pattern_match():
     subpattern = Pattern([Grapheme('a')])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
     word = ['a', 'a', 'b']
     assert Repetition(subpattern, number=2).match_pattern(pattern, word, start=0) == (3, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_Repetition_uses_catixes_from_self_match_in_pattern_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
@@ -354,7 +343,6 @@ def test_Optional_with_greedy_False_doesnt_match_self_if_possible():
     assert element.match_pattern(pattern, word, start=0, catixes={1: 2}) == (1, {1: 2})
     assert element.match_pattern(pattern, word, stop=3, catixes={1: 2}) == (1, {1: 2})
 
-@xfail(reason='module cats is unimplemented')
 def test_Optional_adds_catixes_from_self_match_if_self_matches():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = MockPattern(length=1)
@@ -369,7 +357,6 @@ def test_Optional_adds_catixes_from_self_match_if_self_matches():
     assert Optional(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (1, {})
     assert Optional(subpattern, greedy=False).match_pattern(pattern, word, start=0) == (1, {})
 
-@xfail(reason='module cats is unimplemented')
 def test_Optional_adds_catixes_from_pattern_match():
     subpattern = Pattern([Grapheme('a')])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
@@ -379,7 +366,6 @@ def test_Optional_adds_catixes_from_pattern_match():
     word = ['b']
     assert Optional(subpattern, greedy=True).match_pattern(pattern, word, start=0) == (1, {1: 0})
 
-@xfail(reason='module cats is unimplemented')
 def test_Optional_uses_catixes_from_self_match_in_pattern_match():
     subpattern = Pattern([Category(cats.Category(['a', 'b']), 1)])
     pattern = Pattern([Category(cats.Category(['b', 'c']), 1)])
@@ -404,7 +390,6 @@ def test_Pattern_resolve_replaces_left_arrow_with_reversed_target():
     pattern = Pattern([TargetRef(-1)])
     assert pattern.resolve('ab') == Pattern([Grapheme('b'), Grapheme('a')])
 
-@xfail(reason='module cats is not yet implemented')
 def test_Pattern_resolve_replaces_category_with_grapheme_if_subscript_in_catixes():
     pattern = Pattern([Category(cats.Category(['a', 'b', 'c']), 1)])
     assert pattern.resolve('ab', {1: 2}) == Pattern([Grapheme('c')])
