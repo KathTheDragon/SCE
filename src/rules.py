@@ -166,16 +166,11 @@ class Rule(BaseRule):
             # Check overlap
             if last_match is not None and overlaps(match, last_match):
                 logger.debug('>> Match overlaps with last validated match')
-                continue
-            for predicate in self.predicates:
-                if predicate.match(word, match, catixes):
-                    logger.debug('>> Match validated, getting replacement')
+            else:
+                replacement = self._get_replacement(word, match, catixes, i)
+                if replacement is not None:
                     last_match = match
-                    replacement = predicate.results[i % len(predicate.results)]
-                    replacement = replacement.resolve(word[match], catixes)
-                    logger.debug(f'>>> Replacement is {str(replacement)!r}')
                     changes.append((match, replacement))
-                    break
         if not changes:
             logger.debug('No matches validated')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
@@ -183,6 +178,16 @@ class Rule(BaseRule):
         else:
             logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
             return changes
+
+    def _get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> Pattern | None:
+        for predicate in self.predicates:
+            if predicate.match(word, match, catixes):
+                logger.debug('>> Match validated, getting replacement')
+                replacement = predicate.results[index % len(predicate.results)]
+                replacement = replacement.resolve(word[match], catixes)
+                logger.debug(f'>>> Replacement is {str(replacement)!r}')
+                return replacement
+        return None
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, Pattern]]) -> Word:
         logger.debug(f'Applying matches to {str(word)!r}')
