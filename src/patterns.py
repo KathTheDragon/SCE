@@ -109,6 +109,7 @@ class Category(Element):
             return f'[{self.category.name}]'
 
     def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
+        index = get_index(word, start=start, stop=stop)
         # Note that this will change if sequences become supported in categories
         if self.subscript is None:
             if word[index] in self.category:
