@@ -224,9 +224,14 @@ def test_Rule__get_matches_sorts_by_match_stop_reversed_then_target_index_if_rtl
         (slice(4, 5), {}, 1),
     ]
 
+def test_Rule__get_matches_raises_NoMatchesFound_if_no_matches_are_found(word):
+    rule = Rule(rule='test', targets=[], predicates=[])
+    with raises(NoMatchesFound):
+        rule._get_matches(word)
+
 # _validate_matches
 
-# _apply_matches
+# _apply_changes
 def test_Rule__apply_changes_makes_all_replacements(word):
     assert Rule('', [], [])._apply_changes(word, [
         (slice(1, 2), Pattern([patterns.Grapheme('b')])),
