@@ -151,7 +151,7 @@ class Rule(BaseRule):
         logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
         return matches
 
-    def _validate_matches(self, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, Pattern]]:
+    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, Pattern]]:
         logger.debug('Validate matches')
         changes = []
         last_match = None
@@ -198,7 +198,7 @@ class Rule(BaseRule):
         wordin = word
 
         matches = self._get_matches(word)
-        changes = self._validate_matches(matches)
+        changes = self._validate_matches(word, matches)
         word = self._apply_changes(word, changes)
 
         logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
