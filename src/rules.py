@@ -151,7 +151,7 @@ class Rule(BaseRule):
         logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
         return matches
 
-    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, Pattern]]:
+    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[str]]]:
         logger.debug('Validate matches')
         changes = []
         last_match = None
@@ -179,23 +179,23 @@ class Rule(BaseRule):
             logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
             return changes
 
-    def _get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> Pattern | None:
+    def _get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
         for predicate in self.predicates:
             if predicate.match(word, match, catixes):
                 logger.debug('>> Match validated, getting replacement')
                 replacement = predicate.results[index % len(predicate.results)]
-                replacement = replacement.resolve(word[match], catixes)
-                logger.debug(f'>>> Replacement is {str(replacement)!r}')
+                replacement = replacement.resolve(word[match], catixes).as_phones(word[match.start-1])
+                logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
                 return replacement
         return None
 
-    def _apply_changes(self, word: Word, changes: list[tuple[slice, Pattern]]) -> Word:
+    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
         logger.debug(f'Applying matches to {str(word)!r}')
         if not self.flags.rtl:
             changes.reverse()  # We need changes to always be applied right-to-left
         for match, replacement in changes:
-            logger.debug(f'> Changing {str(word[match])!r} to {str(replacement)!r} at {match.start}')
-            word = word.replace(match, replacement.as_phones(word[match.start-1]))
+            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
+            word = word.replace(match, replacement)
         return word
 
     def _apply(self, word: Word) -> Word:

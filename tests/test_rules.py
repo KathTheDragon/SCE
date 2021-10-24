@@ -234,9 +234,9 @@ def test_Rule__get_matches_raises_NoMatchesFound_if_no_matches_are_found(word):
 # _apply_changes
 def test_Rule__apply_changes_makes_all_replacements(word):
     assert Rule('', [], [])._apply_changes(word, [
-        (slice(1, 2), Pattern([patterns.Grapheme('b')])),
-        (slice(3, 4), Pattern([patterns.Grapheme('c')])),
-        (slice(5, 6), Pattern([patterns.Grapheme('d')])),
+        (slice(1, 2), ['b']),
+        (slice(3, 4), ['c']),
+        (slice(5, 6), ['d']),
     ]) == Word(['a', 'b', 'a', 'c', 'a', 'd', 'a', 'a', 'a', 'a'])
 
 # _apply
