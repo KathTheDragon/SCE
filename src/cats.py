@@ -6,7 +6,7 @@ class Category:
     name: str | None = None
 
     def __str__(self) -> str:
-        return f'[{", ".join(self.elements)}]'
+        return str(self.elements)
 
     def __getitem__(self, item: int) -> str:
         return self.elements[item]
