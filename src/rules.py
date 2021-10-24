@@ -154,7 +154,6 @@ class Rule(BaseRule):
     def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[str]]]:
         logger.debug('Validate matches')
         changes = []
-        last_match = None
         if self.flags.rtl:
             def overlaps(match: slice, last_match: slice) -> bool:
                 return match.stop > last_match.start
@@ -164,12 +163,11 @@ class Rule(BaseRule):
         for match, catixes, i in matches:
             logger.debug(f'> Validating match at {match.start}')
             # Check overlap
-            if last_match is not None and overlaps(match, last_match):
+            if changes and overlaps(match, changes[-1][0]):
                 logger.debug('>> Match overlaps with last validated match')
             else:
                 replacement = self._get_replacement(word, match, catixes, i)
                 if replacement is not None:
-                    last_match = match
                     changes.append((match, replacement))
         if not changes:
             logger.debug('No matches validated')
