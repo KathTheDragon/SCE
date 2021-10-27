@@ -100,9 +100,9 @@ class Predicate:
 
     def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
         if self.match(word, match, catixes):
-            replacement = self.replacements[index % len(self.replacements)]
-            replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
-            return replacement
+            return (self.replacements[index % len(self.replacements)]
+                    .resolve(word[match])
+                    .as_phones(word[match.start-1], catixes))
         else:
             return None
 @dataclass(frozen=True)
