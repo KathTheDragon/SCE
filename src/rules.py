@@ -97,6 +97,16 @@ class Predicate:
             return False
 
 
+
+    def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
+        if self.match(word, match, catixes):
+            logger.debug('>> Match validated, getting replacement')
+            replacement = self.results[index % len(self.results)]
+            replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
+            logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
+            return replacement
+        else:
+            return None
 @dataclass(frozen=True)
 class Flags:
     ignore: int = 0
@@ -166,9 +176,11 @@ class Rule(BaseRule):
             if changes and overlaps(match, changes[-1][0]):
                 logger.debug('>> Match overlaps with last validated match')
             else:
-                replacement = self._get_replacement(word, match, catixes, i)
-                if replacement is not None:
-                    changes.append((match, replacement))
+                for predicate in self.predicates:
+                    replacement = predicate.get_replacement(word, match, catixes, i)
+                    if replacement is not None:
+                        changes.append((match, replacement))
+                        break
         if not changes:
             logger.debug('No matches validated')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
@@ -176,16 +188,6 @@ class Rule(BaseRule):
         else:
             logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
             return changes
-
-    def _get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
-        for predicate in self.predicates:
-            if predicate.match(word, match, catixes):
-                logger.debug('>> Match validated, getting replacement')
-                replacement = predicate.results[index % len(predicate.results)]
-                replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
-                logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
-                return replacement
-        return None
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
         logger.debug(f'Applying matches to {str(word)!r}')

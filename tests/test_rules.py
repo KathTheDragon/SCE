@@ -6,7 +6,7 @@ xfail = pytest.mark.xfail
 
 import random
 from dataclasses import dataclass, field, InitVar
-from SCE.src import patterns, words
+from SCE.src import cats, patterns, words
 from SCE.src.rules import *
 
 # Mocks
@@ -143,6 +143,8 @@ def test_GlobalEnvironment_with_indices_matches_at_any_index(word):
     assert not GlobalEnvironment(MockPattern([slice(0, 1)]), [1]).match(word, slice(1, 2), {})
 
 ## Predicate ##
+
+# match
 def test_Predicate_doesnt_match_if_exceptions_match(word):
     env1 = MockEnvironment([slice(1, 2)])
     assert not Predicate([], [], [[env1]]).match(word, slice(1, 2), {})
@@ -161,6 +163,24 @@ def test_Predicate_doesnt_match_if_neither_exceptions_not_conditions_match(word)
     env1 = MockEnvironment([slice(1, 2)])
     env2 = MockEnvironment([slice(2, 3)])
     assert not Predicate([], [[env1]], [[env2]]).match(word, slice(1, 3), {})
+
+# get_replacement
+def test_Predicate_get_replacement_returns_None_if_Predicate_doesnt_match(word):
+    pattern = Pattern([patterns.Grapheme('b')])
+    env1 = MockEnvironment([slice(1, 2)])
+    assert Predicate([pattern], [], [[env1]]).get_replacement(word, slice(1, 2), {}, 0) is None
+
+def test_Predicate_get_replacement_converts_indexed_result_to_list_str(word):
+    pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
+    assert Predicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
+
+def test_Predicate_get_replacement_mods_index_by_len_results(word):
+    results = [
+        Pattern([patterns.Grapheme('a')]),
+        Pattern([patterns.Grapheme('b')]),
+        Pattern([patterns.Grapheme('c')]),
+    ]
+    assert Predicate(results, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
 
 ## BaseRule ##
 def test_BaseRule_randomly_runs_if_chance_flag_is_set(set_random, word):
