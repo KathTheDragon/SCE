@@ -100,10 +100,8 @@ class Predicate:
 
     def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
         if self.match(word, match, catixes):
-            logger.debug('>> Match validated, getting replacement')
             replacement = self.replacements[index % len(self.replacements)]
             replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
-            logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
             return replacement
         else:
             return None
@@ -179,6 +177,7 @@ class Rule(BaseRule):
                 for predicate in self.predicates:
                     replacement = predicate.get_replacement(word, match, catixes, i)
                     if replacement is not None:
+                        logger.debug(f'>> Match validated, replacement is {"".join(replacement)!r}')
                         changes.append((match, replacement))
                         break
         if not changes:
