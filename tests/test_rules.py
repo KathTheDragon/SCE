@@ -170,12 +170,12 @@ def test_Predicate_get_replacement_returns_None_if_Predicate_doesnt_match(word):
     env1 = MockEnvironment([slice(1, 2)])
     assert Predicate([pattern], [], [[env1]]).get_replacement(word, slice(1, 2), {}, 0) is None
 
-def test_Predicate_get_replacement_converts_indexed_result_to_list_str(word):
+def test_Predicate_get_replacement_converts_indexed_replacement_to_list_str(word):
     pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
     assert Predicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
 
-def test_Predicate_get_replacement_mods_index_by_len_results(word):
-    results = [
+def test_Predicate_get_replacement_mods_index_by_len_replacements(word):
+    replacements = [
         Pattern([patterns.Grapheme('a')]),
         Pattern([patterns.Grapheme('b')]),
         Pattern([patterns.Grapheme('c')]),

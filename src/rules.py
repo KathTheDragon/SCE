@@ -81,7 +81,7 @@ def match_environments(environments: list[list[Environment]], word: Word, match:
 
 @dataclass
 class Predicate:
-    result: list[Pattern]
+    replacements: list[Pattern]
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
@@ -101,7 +101,7 @@ class Predicate:
     def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
         if self.match(word, match, catixes):
             logger.debug('>> Match validated, getting replacement')
-            replacement = self.results[index % len(self.results)]
+            replacement = self.replacements[index % len(self.replacements)]
             replacement = replacement.resolve(word[match]).as_phones(word[match.start-1], catixes)
             logger.debug(f'>>> Replacement is {"".join(replacement)!r}')
             return replacement
