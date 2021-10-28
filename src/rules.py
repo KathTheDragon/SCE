@@ -29,7 +29,7 @@ class Target:
     indices: list[int]
 
     def match(self, word: Word) -> list[tuple[slice, dict[int, int]]]:
-        func = lambda i: i[0] is not None
+        func = lambda i: i[0] is not None and i[0] != slice(0, 0)
         matches = list(filter(func, (self.pattern.match(word, start=start) for start in range(len(word)))))
         if self.indices:
             matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]

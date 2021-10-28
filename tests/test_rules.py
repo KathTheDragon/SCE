@@ -122,6 +122,14 @@ def test_Target_doesnt_use_out_of_bounds_indices(word):
     pattern = MockPattern([slice(1, 3), slice(2, 7), slice(5, 5), slice(6, 8)])
     assert Target(pattern, [6, -5]).match(word) == []
 
+def test_Target_doesnt_consider_empty_match_at_0(word):
+    pattern = MockPattern([slice(0, 0), slice(1, 2), slice(2, 3)])
+    assert Target(pattern, []).match(word) == [
+        (slice(1, 2), {}),
+        (slice(2, 3), {}),
+    ]
+    assert Target(pattern, [0]).match(word) == [(slice(1, 2), {})]
+
 ## LocalEnvironment ##
 def test_LocalEnvironment_matches_iff_left_and_right_match(word):
     lenv = LocalEnvironment(
