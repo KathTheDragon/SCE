@@ -52,9 +52,9 @@ class LocalEnvironment:
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
-        left = self.left.resolve(target).match(word, stop=match.start, catixes=catixes)[0] is not None
-        right = self.right.resolve(target).match(word, start=match.stop, catixes=catixes)[0] is not None
-        return left and right
+        lmatch, catixes = self.left.resolve(target).match(word, stop=match.start, catixes=catixes)
+        rmatch, _ = self.right.resolve(target).match(word, start=match.stop, catixes=catixes)
+        return lmatch is not None and rmatch is not None
 
 
 @dataclass
