@@ -140,6 +140,27 @@ def test_LocalEnvironment_matches_iff_left_and_right_match(word):
     assert not lenv.match(word, slice(2, 5), {})
     assert not lenv.match(word, slice(3, 6), {})
 
+def test_LocalEnvironment_passes_catixes_from_left_into_right(word):
+    lenv = LocalEnvironment(
+        left=patterns.Pattern([patterns.Category(cats.Category(['a', 'b']), 1)]),
+        right=patterns.Pattern([patterns.Category(cats.Category(['a', 'c']), 1)])
+    )
+    assert lenv.match(word, slice(1, 2), {})
+
+    lenv = LocalEnvironment(
+        left=patterns.Pattern([patterns.Category(cats.Category(['a', 'b']), 1)]),
+        right=patterns.Pattern([patterns.Category(cats.Category(['c', 'a']), 1)])
+    )
+    assert not lenv.match(word, slice(1, 2), {})
+
+# match_all
+def test_LocalEnvironment_match_all_returns_all_indices_where_left_and_right_match(word):
+    lenv = LocalEnvironment(
+        left=MockPattern([slice(1, 3), slice(2, 8), slice(3, 4), slice(6, 9)]),
+        right=MockPattern([slice(2, 6), slice(3, 9), slice(4, 8)])
+    )
+    assert lenv.match_all(word, slice(1, 2), {}) == [3, 4]
+
 ## GlobalEnvironment ##
 def test_GlobalEnvironment_with_no_indices_matches_anywhere_in_word(word):
     assert GlobalEnvironment(MockPattern([slice(0, 1)]), []).match(word, slice(1, 2), {})
@@ -150,45 +171,80 @@ def test_GlobalEnvironment_with_indices_matches_at_any_index(word):
     assert GlobalEnvironment(MockPattern([slice(0, 1)]), [0]).match(word, slice(1, 2), {})
     assert not GlobalEnvironment(MockPattern([slice(0, 1)]), [1]).match(word, slice(1, 2), {})
 
+# match_all
+def test_GlobalEnvironment_match_all_returns_all_indices_where_matching_can_happen(word):
+    assert GlobalEnvironment(Pattern([]), []).match_all(word, slice(1, 2), {}) == [
+        1, 2, 3, 4, 5, 6, 7, 8, 9
+    ]
+
+    indices = [2, 4, 5, 8, 9]
+    assert GlobalEnvironment(Pattern([]), indices).match_all(word, slice(1, 2), {}) == indices
+
 ## Predicate ##
 
-# match
 def test_Predicate_doesnt_match_if_exceptions_match(word):
     env1 = MockEnvironment([slice(1, 2)])
-    assert not Predicate([], [], [[env1]]).match(word, slice(1, 2), {})
-    assert not Predicate([], [[env1]], [[env1]]).match(word, slice(1, 2), {})
+    assert not SubstPredicate([], [], [[env1]]).match(word, slice(1, 2), {})
+    assert not SubstPredicate([], [[env1]], [[env1]]).match(word, slice(1, 2), {})
 
 def test_Predicate_matches_if_exceptions_dont_match_and_conditions_do_match(word):
     env1 = MockEnvironment([slice(1, 2)])
     env2 = MockEnvironment([slice(2, 3)])
-    assert Predicate([], [[env1]], [[env2]]).match(word, slice(1, 2), {})
+    assert SubstPredicate([], [[env1]], [[env2]]).match(word, slice(1, 2), {})
 
 def test_Predicate_matches_if_exceptions_dont_match_and_no_conditions(word):
     env2 = MockEnvironment([slice(2, 3)])
-    assert Predicate([], [], [[env2]]).match(word, slice(1, 2), {})
+    assert SubstPredicate([], [], [[env2]]).match(word, slice(1, 2), {})
 
 def test_Predicate_doesnt_match_if_neither_exceptions_not_conditions_match(word):
     env1 = MockEnvironment([slice(1, 2)])
     env2 = MockEnvironment([slice(2, 3)])
-    assert not Predicate([], [[env1]], [[env2]]).match(word, slice(1, 3), {})
+    assert not SubstPredicate([], [[env1]], [[env2]]).match(word, slice(1, 3), {})
 
-# get_replacement
-def test_Predicate_get_replacement_returns_None_if_Predicate_doesnt_match(word):
+## SubstPredicate ##
+
+def test_SubstPredicate_get_replacement_returns_None_if_predicate_doesnt_match(word):
     pattern = Pattern([patterns.Grapheme('b')])
     env1 = MockEnvironment([slice(1, 2)])
-    assert Predicate([pattern], [], [[env1]]).get_replacement(word, slice(1, 2), {}, 0) is None
+    assert SubstPredicate([pattern], [], [[env1]]).get_replacement(word, slice(1, 2), {}, 0) is None
 
-def test_Predicate_get_replacement_converts_indexed_replacement_to_list_str(word):
+def test_SubstPredicate_get_replacement_converts_indexed_replacement_to_list_str(word):
     pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
-    assert Predicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
+    assert SubstPredicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
 
-def test_Predicate_get_replacement_mods_index_by_len_replacements(word):
+def test_SubstPredicate_get_replacement_mods_index_by_len_replacements(word):
     replacements = [
         Pattern([patterns.Grapheme('a')]),
         Pattern([patterns.Grapheme('b')]),
         Pattern([patterns.Grapheme('c')]),
     ]
-    assert Predicate(results, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
+    assert SubstPredicate(replacements, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
+
+## InsertPredicate ##
+
+def test_InsertPredicate_get_destinations_returns_None_if_predicate_doesnt_match(word):
+    environments = [
+        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
+        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
+    ]
+    env1 = MockEnvironment([slice(1, 2)])
+    assert InsertPredicate([environments], [], [[env1]]).get_destinations(word, slice(1, 2), {}, 0) is None
+
+def test_InsertPredicate_get_destinations_returns_intersection_of_matches_from_indexed_environments(
+        word):
+    environments = [
+        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
+        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
+    ]
+    assert InsertPredicate([environments], [], []).get_destinations(word, slice(1, 2), {}, 0) == [1, 5, 7]
+
+def test_InsertPredicate_get_destinations_mods_index_by_len_destinations(word):
+    destinations = [
+        [GlobalEnvironment(Pattern([]), [1])],
+        [GlobalEnvironment(Pattern([]), [2])],
+        [GlobalEnvironment(Pattern([]), [3])],
+    ]
+    assert InsertPredicate(destinations, [], []).get_destinations(word, slice(1, 2), {}, 5) == [3]
 
 ## BaseRule ##
 def test_BaseRule_randomly_runs_if_chance_flag_is_set(set_random, word):
@@ -211,7 +267,7 @@ def test_BaseRule_repeats_according_to_repeat_flag():
 
 # _get_matches
 def test_Rule__get_matches_returns_all_matches_for_each_target(word):
-    rule = Rule(
+    rule = SubstRule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(2, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -225,7 +281,7 @@ def test_Rule__get_matches_returns_all_matches_for_each_target(word):
     ]
 
 def test_Rule__get_matches_sorts_by_match_start_then_target_index_if_ltr(word):
-    rule = Rule(
+    rule = SubstRule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -239,7 +295,7 @@ def test_Rule__get_matches_sorts_by_match_start_then_target_index_if_ltr(word):
     ]
 
 def test_Rule__get_matches_sorts_by_match_stop_reversed_then_target_index_if_rtl(word):
-    rule = Rule(
+    rule = SubstRule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -253,21 +309,35 @@ def test_Rule__get_matches_sorts_by_match_stop_reversed_then_target_index_if_rtl
     ]
 
 def test_Rule__get_matches_raises_NoMatchesFound_if_no_matches_are_found(word):
-    rule = Rule(rule='test', targets=[], predicates=[])
+    rule = SubstRule(rule='test', targets=[], predicates=[])
     with raises(NoMatchesFound):
         rule._get_matches(word)
+
+# _apply
+
+## SubstRule ##
 
 # _validate_matches
 
 # _apply_changes
-def test_Rule__apply_changes_makes_all_replacements(word):
-    assert Rule('', [], [])._apply_changes(word, [
+def test_SubstRule__apply_changes_makes_all_replacements(word):
+    assert SubstRule('', [], [])._apply_changes(word, [
         (slice(1, 2), ['b']),
         (slice(3, 4), ['c']),
         (slice(5, 6), ['d']),
     ]) == Word(['a', 'b', 'a', 'c', 'a', 'd', 'a', 'a', 'a', 'a'])
 
-# _apply
+## InsertRule ##
+
+# _validate_matches
+
+## CopyRule ##
+
+# _apply_changes
+
+## MoveRule ##
+
+# _apply_changes
 
 ## RuleBlock ##
 

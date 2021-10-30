@@ -1,5 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import reduce
+from operator import and_
 from random import randint
 from . import logger
 from .patterns import Pattern
@@ -56,6 +58,18 @@ class LocalEnvironment:
         rmatch, _ = self.right.resolve(target).match(word, start=match.stop, catixes=catixes)
         return lmatch is not None and rmatch is not None
 
+    def match_all(self, word: Word, match: slice, catixes: dict[int, int]) -> list[int]:
+        target = word[match]
+        left = self.left.resolve(target)
+        right = self.right.resolve(target)
+        indices = []
+        for index in range(len(word) + 1):
+            lmatch, _catixes = left.match(word, stop=index, catixes=catixes)
+            rmatch, _ = right.match(word, start=index, catixes=_catixes)
+            if lmatch is not None and rmatch is not None:
+                indices.append(index)
+        return indices
+
 
 @dataclass
 class GlobalEnvironment:
@@ -72,6 +86,14 @@ class GlobalEnvironment:
             indices = ((index+length) if index < 0 else index for index in self.indices)
         return any(pattern.match(word, start=index, catixes=catixes)[0] is not None for index in indices)
 
+    def match_all(self, word: Word, match: slice, catixes: dict[int, int]) -> list[int]:
+        # Ignoring self.pattern
+        if not self.indices:
+            return list(range(1, len(word)))
+        else:
+            length = len(word)
+            return list((index+length) if index < 0 else index for index in self.indices)
+
 Environment = LocalEnvironment | GlobalEnvironment
 
 
@@ -79,12 +101,7 @@ def match_environments(environments: list[list[Environment]], word: Word, match:
     return any(all(environment.match(word, match, catixes) for environment in and_environments) for and_environments in environments)
 
 
-@dataclass
 class Predicate:
-    replacements: list[Pattern]
-    conditions: list[list[Environment]]
-    exceptions: list[list[Environment]]
-
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         if match_environments(self.exceptions, word, match, catixes):
             logger.debug('>> Matched an exception')
@@ -97,6 +114,11 @@ class Predicate:
             return False
 
 
+@dataclass
+class SubstPredicate(Predicate):
+    replacements: list[Pattern]
+    conditions: list[list[Environment]]
+    exceptions: list[list[Environment]]
 
     def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
         if self.match(word, match, catixes):
@@ -105,6 +127,21 @@ class Predicate:
                     .as_phones(word[match.start-1], catixes))
         else:
             return None
+
+
+@dataclass
+class InsertPredicate(Predicate):
+    destinations: list[list[Environment]]
+    conditions: list[list[Environment]]
+    exceptions: list[list[Environment]]
+
+    def get_destinations(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[int] | None:
+        if self.match(word, match, catixes):
+            return sorted(reduce(and_, map(lambda e: set(e.match_all(word, match, catixes)), self.destinations[index % len(self.destinations)])))
+        else:
+            return None
+
+
 @dataclass(frozen=True)
 class Flags:
     ignore: int = 0
@@ -134,8 +171,6 @@ class BaseRule:
 class Rule(BaseRule):
     rule: str
     targets: list[Target]
-    predicates: list[Predicate]
-    flags: Flags = Flags()
 
     def __str__(self) -> str:
         return self.rule
@@ -158,6 +193,23 @@ class Rule(BaseRule):
             matches.sort(key=lambda p: (p[0].start, p[2]))
         logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
         return matches
+
+    def _apply(self, word: Word) -> Word:
+        logger.debug(f'This rule: {self}')
+        wordin = word
+
+        matches = self._get_matches(word)
+        changes = self._validate_matches(word, matches)
+        word = self._apply_changes(word, changes)
+
+        logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
+        return word
+
+
+@dataclass
+class SubstRule(Rule):
+    predicates: list[SubstPredicate]
+    flags: Flags = Flags()
 
     def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[str]]]:
         logger.debug('Validate matches')
@@ -197,15 +249,74 @@ class Rule(BaseRule):
             word = word.replace(match, replacement)
         return word
 
-    def _apply(self, word: Word) -> Word:
-        logger.debug(f'This rule: {self}')
-        wordin = word
 
-        matches = self._get_matches(word)
-        changes = self._validate_matches(word, matches)
-        word = self._apply_changes(word, changes)
+@dataclass
+class InsertRule(Rule):
+    predicates: list[InsertPredicate]
+    flags: Flags = Flags()
 
-        logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
+    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
+        logger.debug('Validate matches')
+        changes = []
+        if self.flags.rtl:
+            def overlaps(match: slice, last_match: slice) -> bool:
+                return match.stop > last_match.start
+        else:
+            def overlaps(match: slice, last_match: slice) -> bool:
+                return match.start < last_match.stop
+        for match, catixes, i in matches:
+            logger.debug(f'> Validating match at {match.start}')
+            # Check overlap
+            if changes and overlaps(match, changes[-1][0]):
+                logger.debug('>> Match overlaps with last validated match')
+            else:
+                for predicate in self.predicates:
+                    destinations = predicate.get_destinations(word, match, catixes, i)
+                    if destinations is not None:
+                        for match, _dests in changes:
+                            destinations = [d for d in destinations if d not in _dests and not (match.start < d < match.stop)]
+                        logger.debug(f'>> Match validated, destinations are {", ".join(destinations)}')
+                        changes.append((match, destinations))
+                        break
+        if not changes:
+            logger.debug('No matches validated')
+            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
+            raise NoMatchesValidated()
+        else:
+            logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
+            return changes
+
+
+@dataclass
+class CopyRule(InsertRule):
+    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[int]]]) -> Word:
+        logger.debug(f'Applying matches to {str(word)!r}')
+        _changes = []
+        for match, destinations in changes:
+            target = list(word[match])
+            for index in destinations:
+                _changes.append((slice(index, index), target))
+        _changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
+        for match, replacement in _changes:
+            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
+            word = word.replace(match, replacement)
+        return word
+
+
+@dataclass
+class MoveRule(InsertRule):
+    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[int]]]) -> Word:
+        logger.debug(f'Applying matches to {str(word)!r}')
+        _changes = []
+        for match, destinations in changes:
+            _changes.append((match, []))
+            target = list(word[match])
+            for index in destinations:
+                _changes.append((slice(index, index), target))
+        _changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
+        for match, replacement in _changes:
+            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
+            word = word.replace(match, replacement)
         return word
 
 
