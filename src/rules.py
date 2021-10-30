@@ -286,38 +286,31 @@ class InsertRule(Rule):
             logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
             return changes
 
+    def _get_changes(self, word: Word, match: slice, destinations: list[int]) -> list[tuple[slice, list[str]]]:
+        target = list(word[match])
+        return [(slice(index, index), target) for index in destinations]
 
-@dataclass
-class CopyRule(InsertRule):
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[int]]]) -> Word:
         logger.debug(f'Applying matches to {str(word)!r}')
         _changes = []
         for match, destinations in changes:
-            target = list(word[match])
-            for index in destinations:
-                _changes.append((slice(index, index), target))
+            _changes.extend(self._get_changes(word, match, destinations))
         _changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
         for match, replacement in _changes:
             logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
             word = word.replace(match, replacement)
         return word
+
+
+@dataclass
+class CopyRule(InsertRule):
+    pass
 
 
 @dataclass
 class MoveRule(InsertRule):
-    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[int]]]) -> Word:
-        logger.debug(f'Applying matches to {str(word)!r}')
-        _changes = []
-        for match, destinations in changes:
-            _changes.append((match, []))
-            target = list(word[match])
-            for index in destinations:
-                _changes.append((slice(index, index), target))
-        _changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
-        for match, replacement in _changes:
-            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
-            word = word.replace(match, replacement)
-        return word
+    def _get_changes(self, word: Word, match: slice, destinations: list[int]) -> list[tuple[slice, list[str]]]:
+        return [(match, []), *super()._get_changes(word, match, destinations)]
 
 
 @dataclass

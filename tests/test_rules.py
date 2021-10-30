@@ -331,13 +331,13 @@ def test_SubstRule__apply_changes_makes_all_replacements(word):
 
 # _validate_matches
 
-## CopyRule ##
+# _get_changes
 
 # _apply_changes
 
 ## MoveRule ##
 
-# _apply_changes
+# _get_changes
 
 ## RuleBlock ##
 
