@@ -269,7 +269,7 @@ class Rule(BaseRule):
         changes = self._validate_matches(word, matches)
         word = self._apply_changes(word, changes)
 
-        logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
+        logger.info(f'{str(wordin)!r} -> {str(self)!r} -> {str(word)!r}')
         return word
 
 
