@@ -100,6 +100,25 @@ def test_match_environments_returns_true_if_all_environments_in_a_group_match(wo
     assert not match_environments([[env1, env2]], word, slice(3, 5), {})
     assert match_environments([[env1, env1]], word, slice(3, 5), {})
 
+# overlaps
+def test_two_empty_slices_overlap_when_identical():
+    assert overlaps(slice(1, 1), slice(1, 1))
+    assert not overlaps(slice(1, 1), slice(2, 2))
+
+def test_empty_slice_overlaps_non_empty_slice_when_fully_contained():
+    assert overlaps(slice(1, 1), slice(0, 2))
+    assert not overlaps(slice(1, 1), slice(1, 2))
+    assert not overlaps(slice(1, 1), slice(0, 1))
+    assert not overlaps(slice(1, 1), slice(2, 3))
+
+def test_non_empty_slices_overlap_when_ranges_intersect():
+    assert overlaps(slice(1, 3), slice(2, 4))
+    assert overlaps(slice(1, 4), slice(2, 3))
+    assert overlaps(slice(1, 3), slice(1, 2))
+    assert overlaps(slice(1, 3), slice(2, 3))
+    assert not overlaps(slice(1, 3), slice(3, 4))
+    assert not overlaps(slice(1, 2), slice(3, 4))
+
 ## Target ##
 def test_Target_with_no_indices_returns_all_matches(word):
     pattern = MockPattern([slice(1, 3), slice(2, 7), slice(5, 5), slice(6, 8)])

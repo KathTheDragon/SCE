@@ -167,6 +167,13 @@ class BaseRule:
             raise RuleRandomlySkipped()
 
 
+def overlaps(match1: slice, match2: slice) -> bool:
+    return (match1.start < match2.start < match1.stop or
+            match2.start < match1.start < match2.stop or
+            match1.start == match2.start and
+            (match1.start == match1.stop) == (match2.start == match2.stop))
+
+
 @dataclass
 class Rule(BaseRule):
     rule: str
@@ -214,12 +221,6 @@ class SubstRule(Rule):
     def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[str]]]:
         logger.debug('Validate matches')
         changes = []
-        if self.flags.rtl:
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.stop > last_match.start
-        else:
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.start < last_match.stop
         for match, catixes, i in matches:
             logger.debug(f'> Validating match at {match.start}')
             # Check overlap
@@ -258,12 +259,6 @@ class InsertRule(Rule):
     def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
         logger.debug('Validate matches')
         changes = []
-        if self.flags.rtl:
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.stop > last_match.start
-        else:
-            def overlaps(match: slice, last_match: slice) -> bool:
-                return match.start < last_match.stop
         for match, catixes, i in matches:
             logger.debug(f'> Validating match at {match.start}')
             # Check overlap
