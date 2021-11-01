@@ -222,11 +222,6 @@ def test_Predicate_doesnt_match_if_neither_exceptions_not_conditions_match(word)
 
 ## SubstPredicate ##
 
-def test_SubstPredicate_get_replacement_returns_None_if_predicate_doesnt_match(word):
-    pattern = Pattern([patterns.Grapheme('b')])
-    env1 = MockEnvironment([slice(1, 2)])
-    assert SubstPredicate([pattern], [], [[env1]]).get_replacement(word, slice(1, 2), {}, 0) is None
-
 def test_SubstPredicate_get_replacement_converts_indexed_replacement_to_list_str(word):
     pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
     assert SubstPredicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
@@ -240,14 +235,6 @@ def test_SubstPredicate_get_replacement_mods_index_by_len_replacements(word):
     assert SubstPredicate(replacements, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
 
 ## InsertPredicate ##
-
-def test_InsertPredicate_get_destinations_returns_None_if_predicate_doesnt_match(word):
-    environments = [
-        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
-        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
-    ]
-    env1 = MockEnvironment([slice(1, 2)])
-    assert InsertPredicate([environments], [], [[env1]]).get_destinations(word, slice(1, 2), {}, 0) is None
 
 def test_InsertPredicate_get_destinations_returns_intersection_of_matches_from_indexed_environments(
         word):
@@ -286,7 +273,7 @@ def test_BaseRule_repeats_according_to_repeat_flag():
 
 # _get_matches
 def test_Rule__get_matches_returns_all_matches_for_each_target(word):
-    rule = SubstRule(
+    rule = Rule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(2, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -300,7 +287,7 @@ def test_Rule__get_matches_returns_all_matches_for_each_target(word):
     ]
 
 def test_Rule__get_matches_sorts_by_match_start_then_target_index_if_ltr(word):
-    rule = SubstRule(
+    rule = Rule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -314,7 +301,7 @@ def test_Rule__get_matches_sorts_by_match_start_then_target_index_if_ltr(word):
     ]
 
 def test_Rule__get_matches_sorts_by_match_stop_reversed_then_target_index_if_rtl(word):
-    rule = SubstRule(
+    rule = Rule(
         rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
@@ -328,35 +315,21 @@ def test_Rule__get_matches_sorts_by_match_stop_reversed_then_target_index_if_rtl
     ]
 
 def test_Rule__get_matches_raises_NoMatchesFound_if_no_matches_are_found(word):
-    rule = SubstRule(rule='test', targets=[], predicates=[])
+    rule = Rule(rule='test', targets=[], predicates=[])
     with raises(NoMatchesFound):
         rule._get_matches(word)
-
-# _apply
-
-## SubstRule ##
 
 # _validate_matches
 
 # _apply_changes
-def test_SubstRule__apply_changes_makes_all_replacements(word):
-    assert SubstRule('', [], [])._apply_changes(word, [
+def test_Rule__apply_changes_makes_all_replacements(word):
+    assert Rule('', [], [])._apply_changes(word, [
         (slice(1, 2), ['b']),
         (slice(3, 4), ['c']),
         (slice(5, 6), ['d']),
     ]) == Word(['a', 'b', 'a', 'c', 'a', 'd', 'a', 'a', 'a', 'a'])
 
-## InsertRule ##
-
-# _validate_matches
-
-# _get_changes
-
-# _apply_changes
-
-## MoveRule ##
-
-# _get_changes
+# _apply
 
 ## RuleBlock ##
 

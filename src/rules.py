@@ -113,6 +113,10 @@ class Predicate:
             logger.debug('>> No condition matched')
             return False
 
+    @staticmethod
+    def verify(old_length: int, new_length: int) -> bool:
+        return True
+
 
 @dataclass
 class SubstPredicate(Predicate):
@@ -120,13 +124,13 @@ class SubstPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
-    def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str] | None:
-        if self.match(word, match, catixes):
-            return (self.replacements[index % len(self.replacements)]
-                    .resolve(word[match])
-                    .as_phones(word[match.start-1], catixes))
-        else:
-            return None
+    def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str]:
+        return (self.replacements[index % len(self.replacements)]
+                .resolve(word[match])
+                .as_phones(word[match.start-1], catixes))
+
+    def get_changes(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[tuple[slice, list[str]]]:
+        return [(match, self.get_replacement(word, match, catixes, index))]
 
 
 @dataclass
@@ -135,11 +139,27 @@ class InsertPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
-    def get_destinations(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[int] | None:
-        if self.match(word, match, catixes):
-            return sorted(reduce(and_, map(lambda e: set(e.match_all(word, match, catixes)), self.destinations[index % len(self.destinations)])))
-        else:
-            return None
+    def get_destinations(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[int]:
+        return sorted(reduce(and_, map(lambda e: set(e.match_all(word, match, catixes)), self.destinations[index % len(self.destinations)])))
+
+    def get_changes(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[tuple[slice, list[str]]]:
+        target = list(word[match])
+        return [(slice(index, index), target) for index in self.get_destinations(word, match, catixes, index)]
+
+
+@dataclass
+class CopyPredicate(InsertPredicate):
+    pass
+
+
+@dataclass
+class MovePredicate(InsertPredicate):
+    def get_changes(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[tuple[slice, list[str]]]:
+        return [(match, []), *super().get_changes(word, match, catixes, index)]
+
+    @staticmethod
+    def verify(old_length: int, new_length: int) -> bool:
+        return new_length > old_length + 1
 
 
 @dataclass(frozen=True)
@@ -178,6 +198,8 @@ def overlaps(match1: slice, match2: slice) -> bool:
 class Rule(BaseRule):
     rule: str
     targets: list[Target]
+    predicates: list[Predicate]
+    flags: Flags = Flags()
 
     def __str__(self) -> str:
         return self.rule
@@ -201,6 +223,44 @@ class Rule(BaseRule):
         logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
         return matches
 
+    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
+        logger.debug('Validate matches')
+        validated = []
+        changes = []
+        for match, catixes, i in matches:
+            logger.debug(f'> Validating match at {match.start}')
+            if validated and overlaps(match, validated[-1]):
+                logger.debug('>> Match overlaps with last validated match')
+            else:
+                for predicate in self.predicates:
+                    if predicate.match(word, match, catixes):
+                        validated.append(match)
+                        logger.debug('>> Match validated, getting changes')
+                        _changes = changes.copy()
+                        for change, replacement in predicate.get_changes(word, match, catixes, index):
+                            if not any(overlaps(change, _change) for _change, _ in _changes):
+                                _changes.append((change, replacement))
+                        if predicate.verify(len(changes), len(_changes)):
+                            changes = _changes
+                        break
+                else:
+                    logger.debug('>> Match failed to validate')
+        changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
+        if not validated:
+            logger.debug('No matches validated')
+            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
+            raise NoMatchesValidated()
+        else:
+            logger.debug(f'Validated matches at {", ".join([match.start for match in validated])}')
+            return changes
+
+    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
+        logger.debug(f'Applying changes to {str(word)!r}')
+        for match, replacement in changes:
+            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
+            word = word.replace(match, replacement)
+        return word
+
     def _apply(self, word: Word) -> Word:
         logger.debug(f'This rule: {self}')
         wordin = word
@@ -211,101 +271,6 @@ class Rule(BaseRule):
 
         logger.info(f'{str(wordin)!r} -> {str(rule)!r} -> {str(word)!r}')
         return word
-
-
-@dataclass
-class SubstRule(Rule):
-    predicates: list[SubstPredicate]
-    flags: Flags = Flags()
-
-    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[str]]]:
-        logger.debug('Validate matches')
-        changes = []
-        for match, catixes, i in matches:
-            logger.debug(f'> Validating match at {match.start}')
-            # Check overlap
-            if changes and overlaps(match, changes[-1][0]):
-                logger.debug('>> Match overlaps with last validated match')
-            else:
-                for predicate in self.predicates:
-                    replacement = predicate.get_replacement(word, match, catixes, i)
-                    if replacement is not None:
-                        logger.debug(f'>> Match validated, replacement is {"".join(replacement)!r}')
-                        changes.append((match, replacement))
-                        break
-        if not changes:
-            logger.debug('No matches validated')
-            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
-            raise NoMatchesValidated()
-        else:
-            logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
-            return changes
-
-    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
-        logger.debug(f'Applying matches to {str(word)!r}')
-        if not self.flags.rtl:
-            changes.reverse()  # We need changes to always be applied right-to-left
-        for match, replacement in changes:
-            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
-            word = word.replace(match, replacement)
-        return word
-
-
-@dataclass
-class InsertRule(Rule):
-    predicates: list[InsertPredicate]
-    flags: Flags = Flags()
-
-    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
-        logger.debug('Validate matches')
-        changes = []
-        for match, catixes, i in matches:
-            logger.debug(f'> Validating match at {match.start}')
-            # Check overlap
-            if changes and overlaps(match, changes[-1][0]):
-                logger.debug('>> Match overlaps with last validated match')
-            else:
-                for predicate in self.predicates:
-                    destinations = predicate.get_destinations(word, match, catixes, i)
-                    if destinations is not None:
-                        for match, _dests in changes:
-                            destinations = [d for d in destinations if d not in _dests and not (match.start < d < match.stop)]
-                        logger.debug(f'>> Match validated, destinations are {", ".join(destinations)}')
-                        changes.append((match, destinations))
-                        break
-        if not changes:
-            logger.debug('No matches validated')
-            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
-            raise NoMatchesValidated()
-        else:
-            logger.debug(f'Validated matches at {[match.start for match, _ in changes]}')
-            return changes
-
-    def _get_changes(self, word: Word, match: slice, destinations: list[int]) -> list[tuple[slice, list[str]]]:
-        target = list(word[match])
-        return [(slice(index, index), target) for index in destinations]
-
-    def _apply_changes(self, word: Word, changes: list[tuple[slice, list[int]]]) -> Word:
-        logger.debug(f'Applying matches to {str(word)!r}')
-        _changes = []
-        for match, destinations in changes:
-            _changes.extend(self._get_changes(word, match, destinations))
-        _changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
-        for match, replacement in _changes:
-            logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
-            word = word.replace(match, replacement)
-        return word
-
-
-@dataclass
-class CopyRule(InsertRule):
-    pass
-
-
-@dataclass
-class MoveRule(InsertRule):
-    def _get_changes(self, word: Word, match: slice, destinations: list[int]) -> list[tuple[slice, list[str]]]:
-        return [(match, []), *super()._get_changes(word, match, destinations)]
 
 
 @dataclass
