@@ -245,7 +245,6 @@ class Rule(BaseRule):
                         break
                 else:
                     logger.debug('>> Match failed to validate')
-        changes.sort(key=lambda c: (-c[0].stop, -c[0].start))
         if not validated:
             logger.debug('No matches validated')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
@@ -256,7 +255,7 @@ class Rule(BaseRule):
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
         logger.debug(f'Applying changes to {str(word)!r}')
-        for match, replacement in changes:
+        for match, replacement in sorted(changes, key=lambda c: (-c[0].stop, -c[0].start)):
             logger.debug(f'> Changing {str(word[match])!r} to {"".join(replacement)!r} at {match.start}')
             word = word.replace(match, replacement)
         return word
