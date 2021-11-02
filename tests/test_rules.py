@@ -234,6 +234,17 @@ def test_SubstPredicate_get_replacement_mods_index_by_len_replacements(word):
     ]
     assert SubstPredicate(replacements, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
 
+def test_SubstPredicate_get_changes_returns_match_with_replacement(word):
+    pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
+    assert SubstPredicate([pattern], [], []).get_changes(word, slice(1, 2), {1: 1}, 0) == [(slice(1, 2), ['a', 'c'])]
+
+    replacements = [
+        Pattern([patterns.Grapheme('a')]),
+        Pattern([patterns.Grapheme('b')]),
+        Pattern([patterns.Grapheme('c')]),
+    ]
+    assert SubstPredicate(replacements, [], []).get_changes(word, slice(1, 2), {}, 5) == [(slice(1, 2), ['c'])]
+
 ## InsertPredicate ##
 
 def test_InsertPredicate_get_destinations_returns_intersection_of_matches_from_indexed_environments(
@@ -251,6 +262,29 @@ def test_InsertPredicate_get_destinations_mods_index_by_len_destinations(word):
         [GlobalEnvironment(Pattern([]), [3])],
     ]
     assert InsertPredicate(destinations, [], []).get_destinations(word, slice(1, 2), {}, 5) == [3]
+
+def test_InsertPredicate_get_changes_returns_empty_slice_with_target_at_each_destination(word):
+    environments = [
+        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
+        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
+    ]
+    assert InsertPredicate([environments], [], []).get_changes(word, slice(1, 2), {}, 0) == [
+        (slice(1, 1), ['a']),
+        (slice(5, 5), ['a']),
+        (slice(7, 7), ['a']),
+    ]
+
+def test_MovePredicate_get_changes_adds_match_with_empty_replacement_to_InsertPredicate(word):
+    environments = [
+        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
+        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
+    ]
+    assert MovePredicate([environments], [], []).get_changes(word, slice(1, 2), {}, 0) == [
+        (slice(1, 2), []),
+        (slice(1, 1), ['a']),
+        (slice(5, 5), ['a']),
+        (slice(7, 7), ['a']),
+    ]
 
 ## BaseRule ##
 def test_BaseRule_randomly_runs_if_chance_flag_is_set(set_random, word):
