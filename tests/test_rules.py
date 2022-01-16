@@ -308,7 +308,6 @@ def test_BaseRule_repeats_according_to_repeat_flag():
 # _get_targets
 def test_Rule__get_targets_returns_all_matches_for_each_target(word):
     rule = Rule(
-        rule='test',
         targets=[MockTarget([slice(1, 6), slice(2, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
         flags=Flags()
@@ -322,7 +321,6 @@ def test_Rule__get_targets_returns_all_matches_for_each_target(word):
 
 def test_Rule__get_targets_sorts_by_match_start_then_target_index_if_ltr(word):
     rule = Rule(
-        rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
         flags=Flags(rtl=0)
@@ -336,7 +334,6 @@ def test_Rule__get_targets_sorts_by_match_start_then_target_index_if_ltr(word):
 
 def test_Rule__get_targets_sorts_by_match_stop_reversed_then_target_index_if_rtl(word):
     rule = Rule(
-        rule='test',
         targets=[MockTarget([slice(1, 6), slice(4, 8)]), MockTarget([slice(3, 6), slice(4, 5)])],
         predicates=[],
         flags=Flags(rtl=1)
@@ -349,7 +346,7 @@ def test_Rule__get_targets_sorts_by_match_stop_reversed_then_target_index_if_rtl
     ]
 
 def test_Rule__get_targets_raises_NoTargetsFound_if_no_matches_are_found(word):
-    rule = Rule(rule='test', targets=[], predicates=[])
+    rule = Rule(targets=[], predicates=[])
     with raises(NoTargetsFound):
         rule._get_targets(word)
 
@@ -357,7 +354,7 @@ def test_Rule__get_targets_raises_NoTargetsFound_if_no_matches_are_found(word):
 
 # _apply_changes
 def test_Rule__apply_changes_makes_all_replacements(word):
-    assert Rule('', [], [])._apply_changes(word, [
+    assert Rule([], [])._apply_changes(word, [
         (slice(1, 2), ['b']),
         (slice(3, 4), ['c']),
         (slice(5, 6), ['d']),
