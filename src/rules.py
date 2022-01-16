@@ -9,10 +9,10 @@ from .words import Word
 
 ## Exceptions
 class RuleDidNotApply(Exception):
-    pass
+    message = '{str(rule)!r} does not apply to {str(word)!r}'
 
 class RuleRandomlySkipped(RuleDidNotApply):
-    pass
+    message = '{str(self)!r} was randomly not run on {str(word)!r}'
 
 class NoTargetsFound(RuleDidNotApply):
     pass
@@ -255,7 +255,6 @@ class BaseRule:
                     break
             return word
         else:
-            logger.info(f'{str(self)!r} was randomly not run on {str(word)!r}')
             raise RuleRandomlySkipped()
 
 
@@ -285,7 +284,6 @@ class Rule(BaseRule):
             targets.extend([(match, catixes, index) for match, catixes in target.match(word)])
         if not targets:
             logger.debug('No targets found')
-            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoTargetsFound()
         if self.flags.rtl:
             logger.debug('Sorting right-to-left')
@@ -314,7 +312,6 @@ class Rule(BaseRule):
                     logger.debug('>> Target failed to validate')
         if not validated:
             logger.debug('No targets validated')
-            logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoTargetsValidated()
         logger.debug(f'Validated targets at {", ".join([str(match.start) for match, _, _, _ in validated])}')
         return validated
@@ -373,7 +370,8 @@ class RuleBlock(BaseRule):
                     if not flags.ditto or (flags.ditto != 1) ^ applied:
                         try:
                             word = rule(word)
-                        except RuleDidNotApply:
+                        except RuleDidNotApply as e:
+                            logger.debug(e.message.format(rule=rule, word=word))
                             applied = False
                         else:
                             applied = True
