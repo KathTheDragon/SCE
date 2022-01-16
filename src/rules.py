@@ -144,7 +144,7 @@ class InsertPredicate(Predicate):
 
     def get_changes(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[tuple[slice, list[str]]]:
         target = list(word[match])
-        return [(slice(index, index), target) for index in self.get_destinations(word, match, catixes, index)]
+        return [(slice(dest, dest), target) for dest in self.get_destinations(word, match, catixes, index)]
 
 
 @dataclass
@@ -207,9 +207,9 @@ class Rule(BaseRule):
     def _get_matches(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
         logger.debug('Begin matching targets')
         matches = []
-        for i, target in enumerate(self.targets):
+        for index, target in enumerate(self.targets):
             logger.debug(f'> Matching {str(target)!r}')
-            matches.extend([(match, catixes, i) for match, catixes in target.match(word)])
+            matches.extend([(match, catixes, index) for match, catixes in target.match(word)])
         if not matches:
             logger.debug('No matches')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
@@ -227,7 +227,7 @@ class Rule(BaseRule):
         logger.debug('Validate matches')
         validated = []
         changes = []
-        for match, catixes, i in matches:
+        for match, catixes, index in matches:
             logger.debug(f'> Validating match at {match.start}')
             if validated and overlaps(match, validated[-1]):
                 logger.debug('>> Match overlaps with last validated match')
@@ -262,14 +262,13 @@ class Rule(BaseRule):
 
     def _apply(self, word: Word) -> Word:
         logger.debug(f'This rule: {self}')
-        wordin = word
 
         matches = self._get_matches(word)
         changes = self._validate_matches(word, matches)
-        word = self._apply_changes(word, changes)
+        newword = self._apply_changes(word, changes)
 
-        logger.info(f'{str(wordin)!r} -> {str(self)!r} -> {str(word)!r}')
-        return word
+        logger.info(f'{str(word)!r} -> {str(self)!r} -> {str(newword)!r}')
+        return newword
 
 
 @dataclass
