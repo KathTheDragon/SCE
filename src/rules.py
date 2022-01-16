@@ -30,6 +30,13 @@ class Target:
     pattern: Pattern
     indices: list[int]
 
+    def __str__(self) -> str:
+        if self.indices:
+            indices = '|'.join(map(str, self.indices))
+            return f'{self.pattern}@{indices}'
+        else:
+            return str(self.pattern)
+
     def match(self, word: Word) -> list[tuple[slice, dict[int, int]]]:
         func = lambda i: i[0] is not None and i[0] != slice(0, 0)
         matches = list(filter(func, (self.pattern.match(word, start=start) for start in range(len(word)))))
@@ -51,6 +58,9 @@ class Target:
 class LocalEnvironment:
     left: Pattern
     right: Pattern
+
+    def __str__(self) -> str:
+        return f'{self.left}_{self.right}'
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -75,6 +85,13 @@ class LocalEnvironment:
 class GlobalEnvironment:
     pattern: Pattern
     indices: list[int]
+
+    def __str__(self) -> str:
+        if self.indices:
+            indices = '|'.join(map(str, self.indices))
+            return f'{self.pattern}@{indices}'
+        else:
+            return str(self.pattern)
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -102,6 +119,24 @@ def match_environments(environments: list[list[Environment]], word: Word, match:
 
 
 class Predicate:
+    # conditions: list[list[Environment]]
+    # exceptions: list[list[Environment]]
+    def __str__(self) -> str:
+        conditions = ', '.join([
+            ' & '.join([str(environment) for environment in and_group])
+            for and_group in self.conditions
+        ])
+        exceptions = ', '.join([
+            ' & '.join([str(environment) for environment in and_group])
+            for and_group in self.exceptions
+        ])
+        string = ''
+        if conditions:
+            string += f' / {conditions}'
+        if exceptions:
+            string += f' ! {exceptions}'
+        return string
+
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         if match_environments(self.exceptions, word, match, catixes):
             logger.debug('>> Matched an exception')
@@ -124,6 +159,10 @@ class SubstPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
+    def __str__(self) -> str:
+        replacements = ', '.join(map(str, self.replacements))
+        return f'> {replacements}{super().__str__()}'
+
     def get_replacement(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[str]:
         return (self.replacements[index % len(self.replacements)]
                 .resolve(word[match])
@@ -139,6 +178,13 @@ class InsertPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
+    def __str__(self) -> str:
+        destinations = ', '.join([
+            ' & '.join([str(environment) for environment in and_group])
+            for and_group in self.destinations
+        ])
+        return f'{destinations}{super().__str__()}'
+
     def get_destinations(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[int]:
         return sorted(reduce(and_, map(lambda e: set(e.match_all(word, match, catixes)), self.destinations[index % len(self.destinations)])))
 
@@ -149,11 +195,15 @@ class InsertPredicate(Predicate):
 
 @dataclass
 class CopyPredicate(InsertPredicate):
-    pass
+    def __str__(self) -> str:
+        return f'>> {super().__str__()}'
 
 
 @dataclass
 class MovePredicate(InsertPredicate):
+    def __str__(self) -> str:
+        return f'-> {super().__str__()}'
+
     def get_changes(self, word: Word, match: slice, catixes: dict[int, int], index: int) -> list[tuple[slice, list[str]]]:
         return [(match, []), *super().get_changes(word, match, catixes, index)]
 
@@ -171,6 +221,28 @@ class Flags:
     repeat: int = 1
     persist: int = 1
     chance: int = 100
+
+    def __str__(self) -> str:
+        flags = []
+        if self.ignore:
+            flags.append('ignore')
+        if self.ditto == 1:
+            flags.append('ditto')
+        elif self.ditto == -1:
+            flags.append('!ditto')
+        if self.stop == 1:
+            flags.append('stop')
+        elif self.stop == -1:
+            flags.append('!stop')
+        if self.rtl:
+            flags.append('rtl')
+        if self.repeat != Flags.repeat:
+            flags.append(f'repeat: {self.repeat}')
+        if self.persist != Flags.persist:
+            flags.append(f'persist: {self.persist}')
+        if self.chance != Flags.chance:
+            flags.append(f'chance: {self.chance}')
+        return '; '.join(flags)
 
 
 class BaseRule:
@@ -196,13 +268,14 @@ def overlaps(match1: slice, match2: slice) -> bool:
 
 @dataclass
 class Rule(BaseRule):
-    rule: str
     targets: list[Target]
     predicates: list[Predicate]
     flags: Flags = Flags()
 
     def __str__(self) -> str:
-        return self.rule
+        targets = ', '.join(map(str, self.targets))
+        predicates = ' '.join(map(str, self.predicates))
+        return f'{targets} {predicates} {self.flags}'.strip()
 
     def _get_targets(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
         logger.debug('Begin finding targets')
