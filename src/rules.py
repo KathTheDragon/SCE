@@ -284,7 +284,6 @@ class RuleBlock(BaseRule):
         applied = False
         rules = []  # We use a list to store rules, since they may be applied multiple times
         values = []  # We have a parallel list for storing the values of the 'for' flag per rule
-        wordin = word
         try:
             for cur_rule in self.rules:
                 # cur_rule runs before the persistent rules, but persists after them
