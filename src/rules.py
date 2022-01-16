@@ -139,13 +139,13 @@ class Predicate:
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         if match_environments(self.exceptions, word, match, catixes):
-            logger.debug('>> Matched an exception')
+            logger.debug('>>> Matched an exception')
             return False
         elif match_environments(self.conditions, word, match, catixes) or not self.conditions:
-            logger.debug('>> Matched a condition')
+            logger.debug('>>> Matched a condition')
             return True
         else:
-            logger.debug('>> No condition matched')
+            logger.debug('>>> No condition matched')
             return False
 
     @staticmethod
@@ -296,25 +296,19 @@ class Rule(BaseRule):
         logger.debug(f'Targets found at {", ".join([str(match.start) for match, _, _ in targets])}')
         return targets
 
-    def _validate_targets(self, word: Word, targets: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
+    def _validate_targets(self, word: Word, targets: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, dict[int, int], int, int]]:
         logger.debug('Validate targets')
         validated = []
-        changes = []
         for match, catixes, index in targets:
             logger.debug(f'> Validating target at {match.start}')
-            if validated and overlaps(match, validated[-1]):
+            if validated and overlaps(match, validated[-1][0]):
                 logger.debug('>> Target overlaps with last validated target')
             else:
-                for predicate in self.predicates:
+                for pindex, predicate in enumerate(self.predicates):
+                    logger.debug(f'>> Checking target against predicate {pindex + 1}')
                     if predicate.match(word, match, catixes):
-                        validated.append(match)
-                        logger.debug('>> Target validated, getting changes')
-                        _changes = changes.copy()
-                        for change, replacement in predicate.get_changes(word, match, catixes, index):
-                            if not any(overlaps(change, _change) for _change, _ in _changes):
-                                _changes.append((change, replacement))
-                        if predicate.verify(len(changes), len(_changes)):
-                            changes = _changes
+                        logger.debug('>> Target validated')
+                        validated.append((match, catixes, index, pindex))
                         break
                 else:
                     logger.debug('>> Target failed to validate')
@@ -322,9 +316,22 @@ class Rule(BaseRule):
             logger.debug('No targets validated')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoTargetsValidated()
-        else:
-            logger.debug(f'Validated targets at {", ".join([str(match.start) for match in validated])}')
-            return changes
+        logger.debug(f'Validated targets at {", ".join([str(match.start) for match, _, _, _ in validated])}')
+        return validated
+
+    def _get_changes(self, word: Word, targets: list[tuple[slice, dict[int, int], int, int]]) -> list[tuple[slice, list[int]]]:
+        logger.debug('Get changes')
+        changes = []
+        for match, catixes, index, pindex in targets:
+            logger.debug(f'> Getting changes for target at {match.start}')
+            _changes = changes.copy()
+            predicate = self.predicates[pindex]
+            for change, replacement in predicate.get_changes(word, match, catixes, index):
+                if not any(overlaps(change, _change) for _change, _ in _changes):
+                    _changes.append((change, replacement))
+            if predicate.verify(len(changes), len(_changes)):
+                changes = _changes
+        return changes
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
         logger.debug(f'Applying changes to {str(word)!r}')
@@ -337,7 +344,8 @@ class Rule(BaseRule):
         logger.debug(f'This rule: {self}')
 
         targets = self._get_targets(word)
-        changes = self._validate_targets(word, targets)
+        validated = self._validate_targets(word, targets)
+        changes = self._get_changes(word, validated)
         newword = self._apply_changes(word, changes)
 
         logger.info(f'{str(word)!r} -> {str(self)!r} -> {str(newword)!r}')
