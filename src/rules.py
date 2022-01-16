@@ -14,10 +14,10 @@ class RuleDidNotApply(Exception):
 class RuleRandomlySkipped(RuleDidNotApply):
     pass
 
-class NoMatchesFound(RuleDidNotApply):
+class NoTargetsFound(RuleDidNotApply):
     pass
 
-class NoMatchesValidated(RuleDidNotApply):
+class NoTargetsValidated(RuleDidNotApply):
     pass
 
 class BlockStopped(Exception):
@@ -37,12 +37,12 @@ class Target:
             matches = [matches[ix] for ix in self.indices if -len(matches) <= ix < len(matches)]
 
         if not matches:
-            logger.debug('>> No matches for this target')
+            logger.debug('>> Target not found')
         elif self.pattern or self.indices:
             for match, _ in matches:
-                logger.debug(f'>> Target matched {str(word[match])!r} at {match.start}')
+                logger.debug(f'>> Found {str(word[match])!r} at {match.start}')
         else:
-            logger.debug(f'>> Null target matched all positions in range 1..{len(word)}')
+            logger.debug(f'>> Found null target at all positions in range 1..{len(word)}')
 
         return matches
 
@@ -204,38 +204,38 @@ class Rule(BaseRule):
     def __str__(self) -> str:
         return self.rule
 
-    def _get_matches(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
-        logger.debug('Begin matching targets')
-        matches = []
+    def _get_targets(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
+        logger.debug('Begin finding targets')
+        targets = []
         for index, target in enumerate(self.targets):
-            logger.debug(f'> Matching {str(target)!r}')
-            matches.extend([(match, catixes, index) for match, catixes in target.match(word)])
-        if not matches:
-            logger.debug('No matches')
+            logger.debug(f'> Searching for {str(target)!r}')
+            targets.extend([(match, catixes, index) for match, catixes in target.match(word)])
+        if not targets:
+            logger.debug('No targets found')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
-            raise NoMatchesFound()
+            raise NoTargetsFound()
         if self.flags.rtl:
             logger.debug('Sorting right-to-left')
-            matches.sort(key=lambda p: (-p[0].stop, p[2]))
+            targets.sort(key=lambda p: (-p[0].stop, p[2]))
         else:
             logger.debug('Sorting left-to-right')
-            matches.sort(key=lambda p: (p[0].start, p[2]))
-        logger.debug(f'Final matches at positions {[match.start for match, _, _ in matches]}')
-        return matches
+            targets.sort(key=lambda p: (p[0].start, p[2]))
+        logger.debug(f'Final targets at positions {[match.start for match, _, _ in targets]}')
+        return targets
 
-    def _validate_matches(self, word: Word, matches: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
-        logger.debug('Validate matches')
+    def _validate_targets(self, word: Word, targets: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
+        logger.debug('Validate targets')
         validated = []
         changes = []
-        for match, catixes, index in matches:
-            logger.debug(f'> Validating match at {match.start}')
+        for match, catixes, index in targets:
+            logger.debug(f'> Validating target at {match.start}')
             if validated and overlaps(match, validated[-1]):
-                logger.debug('>> Match overlaps with last validated match')
+                logger.debug('>> Target overlaps with last validated target')
             else:
                 for predicate in self.predicates:
                     if predicate.match(word, match, catixes):
                         validated.append(match)
-                        logger.debug('>> Match validated, getting changes')
+                        logger.debug('>> Target validated, getting changes')
                         _changes = changes.copy()
                         for change, replacement in predicate.get_changes(word, match, catixes, index):
                             if not any(overlaps(change, _change) for _change, _ in _changes):
@@ -244,13 +244,13 @@ class Rule(BaseRule):
                             changes = _changes
                         break
                 else:
-                    logger.debug('>> Match failed to validate')
+                    logger.debug('>> Target failed to validate')
         if not validated:
-            logger.debug('No matches validated')
+            logger.debug('No targets validated')
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
-            raise NoMatchesValidated()
+            raise NoTargetsValidated()
         else:
-            logger.debug(f'Validated matches at {", ".join([str(match.start) for match in validated])}')
+            logger.debug(f'Validated targets at {", ".join([str(match.start) for match in validated])}')
             return changes
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
@@ -263,8 +263,8 @@ class Rule(BaseRule):
     def _apply(self, word: Word) -> Word:
         logger.debug(f'This rule: {self}')
 
-        matches = self._get_matches(word)
-        changes = self._validate_matches(word, matches)
+        targets = self._get_targets(word)
+        changes = self._validate_targets(word, targets)
         newword = self._apply_changes(word, changes)
 
         logger.info(f'{str(word)!r} -> {str(self)!r} -> {str(newword)!r}')
