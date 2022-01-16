@@ -293,7 +293,7 @@ class Rule(BaseRule):
         else:
             logger.debug('Sorting left-to-right')
             targets.sort(key=lambda p: (p[0].start, p[2]))
-        logger.debug(f'Final targets at positions {[match.start for match, _, _ in targets]}')
+        logger.debug(f'Targets found at {", ".join([str(match.start) for match, _, _ in targets])}')
         return targets
 
     def _validate_targets(self, word: Word, targets: list[tuple[slice, dict[int, int], int]]) -> list[tuple[slice, list[int]]]:
