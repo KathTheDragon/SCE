@@ -250,7 +250,7 @@ class Rule(BaseRule):
             logger.debug(f'{str(self)!r} does not apply to {str(word)!r}')
             raise NoMatchesValidated()
         else:
-            logger.debug(f'Validated matches at {", ".join([match.start for match in validated])}')
+            logger.debug(f'Validated matches at {", ".join([str(match.start) for match in validated])}')
             return changes
 
     def _apply_changes(self, word: Word, changes: list[tuple[slice, list[str]]]) -> Word:
