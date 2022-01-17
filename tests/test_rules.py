@@ -351,6 +351,46 @@ def test_Rule__get_targets_raises_NoTargetsFound_if_no_matches_are_found(word):
         rule._get_targets(word)
 
 # _validate_targets
+def test_Rule__validate_targets_skips_targets_if_they_overlap_with_earlier_targets(word):
+    rule = Rule(targets=[], predicates=[SubstPredicate([], [], [])])
+    assert rule._validate_targets(word, targets=[(slice(i, i+3), {}, 0) for i in range(0, 8)]) == [
+        (slice(0, 3), {}, 0, 0), (slice(3, 6), {}, 0, 0), (slice(6, 9), {}, 0, 0)
+    ]
+
+def test_Rule__validate_targets_skips_targets_that_do_not_match_any_predicate(word):
+    word.phones = ['#', 'a', 'a', 'a', 'a', '#']
+    rule = Rule(targets=[], predicates=[
+        SubstPredicate([], [[
+            LocalEnvironment(patterns.Pattern([patterns.Grapheme('#')]), patterns.Pattern([]))
+        ]], []),
+        SubstPredicate([], [[
+            LocalEnvironment(patterns.Pattern([]), patterns.Pattern([patterns.Grapheme('#')]))
+        ]], [])
+    ])
+    assert rule._validate_targets(word, targets=[(slice(i, i+1), {}, 0) for i in range(1, 5)]) == [
+        (slice(1, 2), {}, 0, 0), (slice(4, 5), {}, 0, 1)
+    ]
+
+def test_Rule__validate_targets_raises_NoTargetsValidated_if_no_targets_validated(word):
+    rule = Rule(targets=[], predicates=[
+        SubstPredicate([], [
+            [LocalEnvironment(patterns.Pattern([patterns.Grapheme('#')]), patterns.Pattern([]))],
+            [LocalEnvironment(patterns.Pattern([]), patterns.Pattern([patterns.Grapheme('#')]))],
+        ], [])
+    ])
+    with raises(NoTargetsValidated):
+        rule._validate_targets(word, targets=[(slice(1, 1), {}, 0)])
+
+# _get_changes
+def test_Rule__get_changes_combines_replacements_for_each_target_from_matched_predicate(word):
+    rule = Rule(targets=[], predicates=[
+        SubstPredicate([patterns.Pattern([patterns.Grapheme('a')])], [], []),
+        SubstPredicate([patterns.Pattern([patterns.Grapheme('b')])], [], []),
+        SubstPredicate([patterns.Pattern([patterns.Grapheme('c')])], [], []),
+    ])
+    assert rule._get_changes(word, targets=[
+        (slice(1, 2), {}, 0, 0), (slice(3, 4), {}, 0, 1), (slice(5, 6), {}, 0, 2)
+    ]) == [(slice(1, 2), ['a']), (slice(3, 4), ['b']), (slice(5, 6), ['c'])]
 
 # _apply_changes
 def test_Rule__apply_changes_makes_all_replacements(word):
