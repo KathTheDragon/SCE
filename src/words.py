@@ -108,9 +108,6 @@ def matches(string1: str, string2: str) -> bool:
     else:
         return all(c1 == '*' or c2 == '*' or c1 == c2 for c1, c2 in zip(string1, string2))
 
-def parseWords(words: list[str], graphemes: tuple[str]=('*',), separator: str='') -> list[Word]:
-    return [Word.parse(word, graphemes, separator) for word in words]
-
 def combine_graphemes(*grapheme_sets: Iterable[str]) -> tuple[str]:
     new_graphemes = []
     for graphemes in grapheme_sets:
