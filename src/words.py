@@ -19,7 +19,7 @@ class Word:
     separator: str = ''
 
     @staticmethod
-    def parse(string, graphemes: tuple[str]=('*',), separator: str='') -> 'Word':
+    def parse(string: str, graphemes: tuple[str]=('*',), separator: str='') -> 'Word':
         return Word(
             phones=parse(re.sub(r'\s+', '#', f' {string} '), graphemes, separator),
             graphemes=graphemes + ('#',),
