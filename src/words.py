@@ -11,6 +11,7 @@ class InvalidCharacter(Exception):
     def __str__(self) -> str:
         return f'Encountered character {self.char!r} not in graphemes {list(self.graphemes)!r} while parsing string {self.string!r}'
 
+
 @dataclass
 class Word:
     phones: list[str]
@@ -47,6 +48,7 @@ class Word:
             separator=self.separator
         )
 
+
 def parse(string: str, graphemes: tuple[str]=('*',), separator: str='') -> list[str]:
     graphs = sorted(filter(len, graphemes), key=len, reverse=True)
     word = []
@@ -61,6 +63,7 @@ def parse(string: str, graphemes: tuple[str]=('*',), separator: str='') -> list[
             word.append(graph)
             string = string.removeprefix(graph).lstrip(separator)
     return word
+
 
 def unparse(word: Word, graphemes: tuple[str]=('*',), separator: str='') -> str:
     string = ''
@@ -90,6 +93,7 @@ def unparse(word: Word, graphemes: tuple[str]=('*',), separator: str='') -> str:
         string += graph
     return string
 
+
 def startswith(string: str, prefix: str, *, strict: bool=False) -> bool:
     if len(prefix) > len(string):
         return False
@@ -100,6 +104,7 @@ def startswith(string: str, prefix: str, *, strict: bool=False) -> bool:
     else:
         return all(sc == '*' or pc == '*' or sc == pc for sc, pc in zip(string, prefix))
 
+
 def matches(string1: str, string2: str) -> bool:
     if len(string1) != len(string2):
         return False
@@ -107,6 +112,7 @@ def matches(string1: str, string2: str) -> bool:
         return string1 == string2
     else:
         return all(c1 == '*' or c2 == '*' or c1 == c2 for c1, c2 in zip(string1, string2))
+
 
 def combine_graphemes(*grapheme_sets: Iterable[str]) -> tuple[str]:
     new_graphemes = []
