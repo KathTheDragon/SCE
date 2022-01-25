@@ -246,7 +246,10 @@ class Flags:
 
 
 class BaseRule:
-    def __call__(self, word: Word) -> Word:
+    def __call__(self, word: Word, nested: bool=False) -> Word:
+        if not nested:
+            logger.info(f'This word: {word}')
+            logger.debug(f'Segments: {" ".join(word)}')
         if randint(1, 100) <= self.flags.chance:
             for _ in range(self.flags.repeat):
                 wordin = word
@@ -369,7 +372,7 @@ class RuleBlock(BaseRule):
                     flags = rule.flags
                     if not flags.ditto or (flags.ditto != 1) ^ applied:
                         try:
-                            word = rule(word)
+                            word = rule(word, nested=True)
                         except RuleDidNotApply as e:
                             logger.debug(e.message.format(rule=rule, word=word))
                             applied = False
