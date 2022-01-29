@@ -37,6 +37,9 @@ class Target:
         else:
             return str(self.pattern)
 
+    def __repr__(self) -> str:
+        return f'Target({str(self)!r})'
+
     def match(self, word: Word) -> list[tuple[slice, dict[int, int]]]:
         func = lambda i: i[0] is not None and i[0] != slice(0, 0)
         matches = list(filter(func, (self.pattern.match(word, start=start) for start in range(len(word)))))
@@ -61,6 +64,9 @@ class LocalEnvironment:
 
     def __str__(self) -> str:
         return f'{self.left}_{self.right}'
+
+    def __repr__(self) -> str:
+        return f'LocalEnvironment({str(self)!r})'
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -92,6 +98,9 @@ class GlobalEnvironment:
             return f'{self.pattern}@{indices}'
         else:
             return str(self.pattern)
+
+    def __repr__(self) -> str:
+        return f'GlobalEnvironment({str(self)!r})'
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -137,6 +146,9 @@ class Predicate:
             string += f' ! {exceptions}'
         return string
 
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({str(self)!r})'
+
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         if match_environments(self.exceptions, word, match, catixes):
             logger.debug('>>> Matched an exception')
@@ -153,7 +165,7 @@ class Predicate:
         return True
 
 
-@dataclass
+@dataclass(repr=False)
 class SubstPredicate(Predicate):
     replacements: list[Pattern]
     conditions: list[list[Environment]]
@@ -172,7 +184,7 @@ class SubstPredicate(Predicate):
         return [(match, self.get_replacement(word, match, catixes, index))]
 
 
-@dataclass
+@dataclass(repr=False)
 class InsertPredicate(Predicate):
     destinations: list[list[Environment]]
     conditions: list[list[Environment]]
@@ -193,13 +205,13 @@ class InsertPredicate(Predicate):
         return [(slice(dest, dest), target) for dest in self.get_destinations(word, match, catixes, index)]
 
 
-@dataclass
+@dataclass(repr=False)
 class CopyPredicate(InsertPredicate):
     def __str__(self) -> str:
         return f'>> {super().__str__()}'
 
 
-@dataclass
+@dataclass(repr=False)
 class MovePredicate(InsertPredicate):
     def __str__(self) -> str:
         return f'-> {super().__str__()}'
@@ -244,6 +256,9 @@ class Flags:
             flags.append(f'chance: {self.chance}')
         return '; '.join(flags)
 
+    def __repr__(self) -> str:
+        return f'Flags({str(self)!r})'
+
 
 class BaseRule:
     def __call__(self, word: Word, nested: bool=False) -> Word:
@@ -278,6 +293,9 @@ class Rule(BaseRule):
         targets = ', '.join(map(str, self.targets))
         predicates = ' '.join(map(str, self.predicates))
         return f'{targets} {predicates} {self.flags}'.strip()
+
+    def __repr__(self) -> str:
+        return f'Rule({str(self)!r})'
 
     def _get_targets(self, word: Word) -> list[tuple[slice, dict[int, int], int]]:
         logger.debug('Begin finding targets')
