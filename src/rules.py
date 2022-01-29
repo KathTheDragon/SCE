@@ -1,11 +1,15 @@
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import reduce
+from itertools import repeat
 from operator import and_
 from random import randint
 from . import logger
+from .cats import Category
 from .patterns import Pattern
-from .words import Word
+from .utils import split
+from .words import Word, parse
 
 ## Exceptions
 class RuleDidNotApply(Exception):
@@ -29,6 +33,17 @@ class BlockStopped(Exception):
 class Target:
     pattern: Pattern
     indices: list[int]
+
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'Target':
+        if '@' in string:
+            _pattern, _indices = string.split('@')
+            pattern = Pattern.parse(_pattern, categories)
+            indices = list(map(int, _indices.split('|')))
+        else:
+            pattern = Pattern.parse(string, categories)
+            indices = []
+        return Target(pattern, indices)
 
     def __str__(self) -> str:
         if self.indices:
@@ -58,15 +73,30 @@ class Target:
 
 
 @dataclass
-class LocalEnvironment:
+class Environment:
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'Environment':
+        if '_' in string:
+            return LocalEnvironment.parse(string, categories)
+        else:
+            return GlobalEnvironment.parse(string, categories)
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({str(self)!r})'
+
+
+@dataclass(repr=False)
+class LocalEnvironment(Environment):
     left: Pattern
     right: Pattern
 
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'LocalEnvironment':
+        left, right = map(Pattern.parse, string.split('_'), repeat(categories))
+        return LocalEnvironment(left, right)
+
     def __str__(self) -> str:
         return f'{self.left}_{self.right}'
-
-    def __repr__(self) -> str:
-        return f'LocalEnvironment({str(self)!r})'
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -87,10 +117,21 @@ class LocalEnvironment:
         return indices
 
 
-@dataclass
-class GlobalEnvironment:
+@dataclass(repr=False)
+class GlobalEnvironment(Environment):
     pattern: Pattern
     indices: list[int]
+
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'GlobalEnvironment':
+        if '@' in string:
+            _pattern, _indices = string.split('@')
+            pattern = Pattern.parse(_pattern, categories)
+            indices = list(map(int, _indices.split('|')))
+        else:
+            pattern = Pattern.parse(string, categories)
+            indices = []
+        return GlobalEnvironment(pattern, indices)
 
     def __str__(self) -> str:
         if self.indices:
@@ -98,9 +139,6 @@ class GlobalEnvironment:
             return f'{self.pattern}@{indices}'
         else:
             return str(self.pattern)
-
-    def __repr__(self) -> str:
-        return f'GlobalEnvironment({str(self)!r})'
 
     def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
         target = word[match]
@@ -120,8 +158,6 @@ class GlobalEnvironment:
             length = len(word)
             return list((index+length) if index < 0 else index for index in self.indices)
 
-Environment = LocalEnvironment | GlobalEnvironment
-
 
 def match_environments(environments: list[list[Environment]], word: Word, match: slice, catixes: dict[int, int]) -> bool:
     return any(all(environment.match(word, match, catixes) for environment in and_environments) for and_environments in environments)
@@ -130,6 +166,35 @@ def match_environments(environments: list[list[Environment]], word: Word, match:
 class Predicate:
     # conditions: list[list[Environment]]
     # exceptions: list[list[Environment]]
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'Predicate':
+        if string.startswith('->'):
+            return MovePredicate.parse(string, categories)
+        elif string.startswith('>>'):
+            return CopyPredicate.parse(string, categories)
+        elif string.startswith('>'):
+            return SubstPredicate.parse(string, categories)
+
+    @staticmethod
+    def _parse_environments(string: str, categories: dict[str, Category]) -> tuple[str, list[list[Environment]], list[list[Environment]]]:
+        if '!' in string:
+            string, _exceptions = string.rsplit('!', maxsplit=1)
+            exceptions = [
+                [Environment.parse(env, categories) for env in group.split('&')]
+                for group in split(_exceptions, ',')
+            ]
+        else:
+            exceptions = [[]]
+        if '/' in string:
+            string, _conditions = string.rsplit('/', maxsplit=1)
+            conditions = [
+                [Environment.parse(env, categories) for env in group.split('&')]
+                for group in split(_conditions, ',')
+            ]
+        else:
+            conditions = [[]]
+        return string, conditions, exceptions
+
     def __str__(self) -> str:
         conditions = ', '.join([
             ' & '.join([str(environment) for environment in and_group])
@@ -171,6 +236,14 @@ class SubstPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'SubstPredicate':
+        string, conditions, exceptions = Predicate._parse_environments(string, categories)
+        replacements = [
+            Pattern.parse(p, categories) for p in split(string.removeprefix('>'), ',')
+        ]
+        return SubstPredicate(replacements, conditions, exceptions)
+
     def __str__(self) -> str:
         replacements = ', '.join(map(str, self.replacements))
         return f'> {replacements}{super().__str__()}'
@@ -207,12 +280,30 @@ class InsertPredicate(Predicate):
 
 @dataclass(repr=False)
 class CopyPredicate(InsertPredicate):
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'CopyPredicate':
+        string, conditions, exceptions = Predicate._parse_environments(string, categories)
+        destinations = [
+            [Environment.parse(env, categories) for env in split(group, '&')]
+            for group in split(string.removeprefix('>>'), ',')
+        ]
+        return CopyPredicate(destinations, conditions, exceptions)
+
     def __str__(self) -> str:
         return f'>> {super().__str__()}'
 
 
 @dataclass(repr=False)
 class MovePredicate(InsertPredicate):
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'MovePredicate':
+        string, conditions, exceptions = Predicate._parse_environments(string, categories)
+        destinations = [
+            [Environment.parse(env, categories) for env in split(group, '&')]
+            for group in split(string.removeprefix('>>'), ',')
+        ]
+        return MovePredicate(destinations, conditions, exceptions)
+
     def __str__(self) -> str:
         return f'-> {super().__str__()}'
 
@@ -224,6 +315,10 @@ class MovePredicate(InsertPredicate):
         return new_length > old_length + 1
 
 
+FLAGS = ('ignore', 'ditto', 'stop', 'rtl', 'repeat', 'persist', 'chance')
+TERNARY_FLAGS = ('ditto', 'stop')
+NUMERIC_FLAGS = ('repeat', 'persist', 'chance')
+
 @dataclass(frozen=True)
 class Flags:
     ignore: int = 0
@@ -233,6 +328,37 @@ class Flags:
     repeat: int = 1
     persist: int = 1
     chance: int = 100
+
+    @staticmethod
+    def parse(string: str) -> 'Flags':
+        flags = {}
+        parts = string.split(';')
+        for part in parts:
+            if part.startswith('!'):
+                flag = part.removeprefix('!')
+                if flag not in FLAGS:
+                    raise ValueError(f'{flag!r} is not a flag')
+                elif flag not in TERNARY_FLAGS:
+                    raise ValueError(f'flag {flag!r} cannot be negated')
+                flags[flag] = -1
+            elif ':' in part:
+                flag, _arg = part.split(':')
+                if flag not in FLAGS:
+                    raise ValueError(f'{flag!r} is not a flag')
+                elif flag not in NUMERIC_FLAGS:
+                    raise ValueError(f'flag {flag!r} cannot take an argument')
+                arg = int(_arg)
+                if arg <= 0:
+                    raise ValueError(f'argument {arg!r} cannot be negative or zero')
+                flags[flag] = arg
+            else:
+                flag = part
+                if flag not in FLAGS:
+                    raise ValueError(f'{flag!r} is not a flag')
+                elif flag in NUMERIC_FLAGS:
+                    raise ValueError(f'flag {flag!r} must take an argument')
+                flags[flag] = 1
+        return Flags(**flags)
 
     def __str__(self) -> str:
         flags = []
@@ -283,11 +409,39 @@ def overlaps(match1: slice, match2: slice) -> bool:
             (match1.start == match1.stop) == (match2.start == match2.stop))
 
 
+WS_AFTER = r'([,;:]) '
+WS_AROUND = r' (->|>>|[>/!&+\-]) '
+WS_BEFORE = r' (@)'
+
 @dataclass
 class Rule(BaseRule):
     targets: list[Target]
     predicates: list[Predicate]
     flags: Flags = Flags()
+
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'Rule':
+        # Remove whitespace
+        for regex in (WS_AROUND, WS_AFTER, WS_BEFORE):
+            string = re.sub(regex, r'\1', string)
+        # Get flags
+        if ' ' in string:
+            string, _flags = string.rsplit(' ', maxsplit=1)
+            flags = Flags.parse(_flags)
+        else:
+            flags = Flags()
+        # Split targets and predicates
+        parts = split(string, '->', '>>', '>', keep_separators=True)
+        if not parts[0]:
+            raise ValueError('string contained no targets')
+        elif len(parts) == 1:
+            raise ValueError('string contained no predicates')
+        targets = [
+            Target.parse(p.strip(), categories)
+            for p in split(parts.pop(0), ',')]
+        predicates = [Predicate.parse(part, categories) for part in parts]
+
+        return Rule(targets, predicates, flags)
 
     def __str__(self) -> str:
         targets = ', '.join(map(str, self.targets))
@@ -405,3 +559,8 @@ class RuleBlock(BaseRule):
         except BlockStopped:
             pass
         return word
+
+
+def parse_ruleset(ruleset: list[str], categories: dict[str, Category]) -> RuleBlock:
+    rules = []
+    ...

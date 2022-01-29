@@ -1,5 +1,8 @@
+import re
 from dataclasses import dataclass
 from typing import overload
+from . import cats, words
+from .utils import match_bracket
 from .words import Word
 
 ESCAPES = '+-,>/!()[]{}?*"\\$%<'
@@ -99,7 +102,7 @@ class Ditto(CharacterMixin, Element):
 
 @dataclass(repr=False)
 class Category(Element):
-    category: 'cats.Category'
+    category: cats.Category
     subscript: int | None
 
     def __str__(self) -> str:
@@ -202,6 +205,22 @@ class Optional(BranchMixin, SubpatternMixin, Element):
 
 
 @dataclass(repr=False)
+class SylBreak(Element):
+    def __str__(self) -> str:
+        return '$'
+
+
+@dataclass(repr=False)
+class Comparison(Element):
+    operation: str
+    value: int
+    pattern: 'Pattern'
+
+    def __str__(self) -> str:
+        return f'{{{self.operation}{self.value}}}'.replace('==', '=')
+
+
+@dataclass(repr=False)
 class TargetRef(Element):
     direction: int
 
@@ -212,6 +231,79 @@ class TargetRef(Element):
 @dataclass
 class Pattern:
     elements: list[Element]
+
+    @staticmethod
+    def parse(string: str, categories: dict[str, cats.Category]) -> 'Pattern':
+        elements = []
+        graphemes = categories.get('graphemes', ('*',))
+        separator = categories.get('separator', '')
+        index = 0
+        _chars = ''
+        while index < len(string):
+            char = string[index]
+            if char in '([*"%<':
+                elements.extend(map(Grapheme, words.parse(_chars, graphemes, separator)))
+                _chars = ''
+            if char == '(':
+                end = match_bracket(string, index)
+                pattern = Pattern.parse(string[index+1:end], categories)
+                index = end + 1
+                if string[index:index+4] == '{*?}':
+                    elements.append(WildcardRepetition(pattern, greedy=False))
+                    index += 4
+                elif string[index:index+3] == '{*}':
+                    elements.append(WildcardRepetition(pattern, greedy=True))
+                    index += 3
+                elif string[index:index+1] == '{':
+                    end = match_bracket(string, index)
+                    elements.append(Repetition(pattern, int(string[index+1:end])))
+                    index = end + 1
+                elif string[index:index+1] == '?':
+                    elements.append(Optional(pattern, greedy=False))
+                    index += 1
+                else:
+                    elements.append(Optional(pattern, greedy=True))
+            elif char == '[':
+                end = match_bracket(string, index)
+                category = cats.Category.parse(string[index+1:end], categories)
+                index = end + 1
+                match = re.compile('[₀₁₂₃₄₅₆₇₈₉]+').match(string, index)
+                if match is None:
+                    subscript = None
+                else:
+                    _subscript = match.group()
+                    subscript = int(_subscript.translate(str.maketrans('₀₁₂₃₄₅₆₇₈₉', '0123456789')))
+                    index = match.end()
+                elements.append(Category(category, subscript))
+            elif char == '*':
+                if string[index:index+3] == '**?':
+                    elements.append(Wildcard(greedy=False, extended=True))
+                    index += 3
+                elif string[index:index+2] == '**':
+                    elements.append(Wildcard(greedy=True, extended=True))
+                    index += 2
+                elif string[index:index+2] == '*?':
+                    elements.append(Wildcard(greedy=False, extended=False))
+                    index += 2
+                else:
+                    elements.append(Wildcard(greedy=True, extended=False))
+                    index += 1
+            elif char == '"':
+                elements.append(Ditto())
+                index += 1
+            elif char == '%':
+                elements.append(TargetRef(1))
+                index += 1
+            elif char == '<':
+                elements.append(TargetRef(-1))
+                index += 1
+            else:
+                if char == '\\':
+                    index += 1
+                _chars += string[index]
+                index += 1
+        elements.extend(map(Grapheme, words.parse(_chars, graphemes, separator)))
+        return Pattern(elements)
 
     def __str__(self) -> str:
         return ''.join(map(str, self.elements))
