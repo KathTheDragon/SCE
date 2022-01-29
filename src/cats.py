@@ -6,7 +6,10 @@ class Category:
     name: str | None = None
 
     def __str__(self) -> str:
-        return str(self.elements)
+        if self.name is not None:
+            return self.name
+        else:
+            return ', '.join(self.elements)
 
     def __getitem__(self, item: int) -> str:
         return self.elements[item]

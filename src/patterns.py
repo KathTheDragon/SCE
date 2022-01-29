@@ -95,10 +95,7 @@ class Category(Element):
     subscript: int | None
 
     def __str__(self) -> str:
-        if self.category.name is None:
-            return str(self.category)
-        else:
-            return f'[{self.category.name}]'
+        return f'[{self.category}]'
 
     def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         index = get_index(word, start=start, stop=stop)
