@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import overload
 from .words import Word
 
+ESCAPES = '+-,>/!()[]{}?*"\\$%<'
+
 class MatchFailed(Exception):
     pass
 
@@ -74,7 +76,10 @@ class Grapheme(CharacterMixin, Element):
     grapheme: str
 
     def __str__(self) -> str:
-        return self.grapheme
+        if self.grapheme in ESCAPES:
+            return f'\\{self.grapheme}'
+        else:
+            return self.grapheme
 
     def _match(self, word: Word, index: int) -> bool:
         return word[index] == self.grapheme
@@ -84,6 +89,9 @@ class Grapheme(CharacterMixin, Element):
 class Ditto(CharacterMixin, Element):
     def __str__(self) -> str:
         return '"'
+
+    def __repr__(self) -> str:
+        return 'Ditto()'
 
     def _match(self, word: Word, index: int) -> bool:
         return index and word[index] == word[index-1]
