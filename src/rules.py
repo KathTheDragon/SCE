@@ -329,7 +329,7 @@ class MovePredicate(InsertPredicate):
         string, conditions, exceptions = Predicate._parse_environments(string, categories)
         destinations = [
             [Environment.parse(env, categories) for env in split(group, '&')]
-            for group in split(string.removeprefix('>>'), ',')
+            for group in split(string.removeprefix('->'), ',')
         ]
         return MovePredicate(destinations, conditions, exceptions)
 
