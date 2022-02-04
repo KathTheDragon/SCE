@@ -160,17 +160,8 @@ def test_LocalEnvironment_matches_iff_left_and_right_match(word):
     assert not lenv.match(word, slice(3, 6), {})
 
 def test_LocalEnvironment_passes_catixes_from_left_into_right(word):
-    lenv = LocalEnvironment(
-        left=patterns.Pattern([patterns.Category(cats.Category(['a', 'b']), 1)]),
-        right=patterns.Pattern([patterns.Category(cats.Category(['a', 'c']), 1)])
-    )
-    assert lenv.match(word, slice(1, 2), {})
-
-    lenv = LocalEnvironment(
-        left=patterns.Pattern([patterns.Category(cats.Category(['a', 'b']), 1)]),
-        right=patterns.Pattern([patterns.Category(cats.Category(['c', 'a']), 1)])
-    )
-    assert not lenv.match(word, slice(1, 2), {})
+    assert LocalEnvironment.parse('[a,b]₁_[a,c]₁', {}).match(word, slice(1, 2), {})
+    assert not LocalEnvironment.parse('[a,b]₁_[c,a]₁', {}).match(word, slice(1, 2), {})
 
 # match_all
 def test_LocalEnvironment_match_all_returns_all_indices_where_left_and_right_match(word):
@@ -204,12 +195,13 @@ def test_GlobalEnvironment_with_indices_matches_at_any_index(word):
 
 # match_all
 def test_GlobalEnvironment_match_all_returns_all_indices_where_matching_can_happen(word):
-    assert GlobalEnvironment(Pattern([]), []).match_all(word, slice(1, 2), {}) == [
+    assert GlobalEnvironment.parse('', {}).match_all(word, slice(1, 2), {}) == [
         1, 2, 3, 4, 5, 6, 7, 8, 9
     ]
 
-    indices = [2, 4, 5, 8, 9]
-    assert GlobalEnvironment(Pattern([]), indices).match_all(word, slice(1, 2), {}) == indices
+    assert GlobalEnvironment.parse('@2|4|5|8|9', {}).match_all(word, slice(1, 2), {}) == [
+        2, 4, 5, 8, 9
+    ]
 
 ## Predicate ##
 
@@ -235,63 +227,36 @@ def test_Predicate_doesnt_match_if_neither_exceptions_not_conditions_match(word)
 ## SubstPredicate ##
 
 def test_SubstPredicate_get_replacement_converts_indexed_replacement_to_list_str(word):
-    pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
-    assert SubstPredicate([pattern], [], []).get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
+    assert SubstPredicate.parse('>%[b,c]₁').get_replacement(word, slice(1, 2), {1: 1}, 0) == ['a', 'c']
 
 def test_SubstPredicate_get_replacement_mods_index_by_len_replacements(word):
-    replacements = [
-        Pattern([patterns.Grapheme('a')]),
-        Pattern([patterns.Grapheme('b')]),
-        Pattern([patterns.Grapheme('c')]),
-    ]
-    assert SubstPredicate(replacements, [], []).get_replacement(word, slice(1, 2), {}, 5) == ['c']
+    assert SubstPredicate.parse('>a,b,c', {}).get_replacement(word, slice(1, 2), {}, 5) == ['c']
 
 def test_SubstPredicate_get_changes_returns_match_with_replacement(word):
-    pattern = Pattern([patterns.TargetRef(1), patterns.Category(cats.Category(['b', 'c']), 1)])
-    assert SubstPredicate([pattern], [], []).get_changes(word, slice(1, 2), {1: 1}, 0) == [(slice(1, 2), ['a', 'c'])]
-
-    replacements = [
-        Pattern([patterns.Grapheme('a')]),
-        Pattern([patterns.Grapheme('b')]),
-        Pattern([patterns.Grapheme('c')]),
-    ]
-    assert SubstPredicate(replacements, [], []).get_changes(word, slice(1, 2), {}, 5) == [(slice(1, 2), ['c'])]
+    assert SubstPredicate.parse('>%[b,c]₁', {}).get_changes(word, slice(1, 2), {1: 1}, 0) == [(slice(1, 2), ['a', 'c'])]
+    assert SubstPredicate.parse('>a,b,c', {}).get_changes(word, slice(1, 2), {}, 5) == [(slice(1, 2), ['c'])]
 
 ## InsertPredicate ##
 
 def test_InsertPredicate_get_destinations_returns_intersection_of_matches_from_indexed_environments(
         word):
-    environments = [
-        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
-        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
-    ]
-    assert InsertPredicate([environments], [], []).get_destinations(word, slice(1, 2), {}, 0) == [1, 5, 7]
+    string = '@1|3|5|7|9&@1|2|4|5|7|8'
+    assert InsertPredicate.parse(string, {}).get_destinations(word, slice(1, 2), {}, 0) == [1, 5, 7]
 
 def test_InsertPredicate_get_destinations_mods_index_by_len_destinations(word):
-    destinations = [
-        [GlobalEnvironment(Pattern([]), [1])],
-        [GlobalEnvironment(Pattern([]), [2])],
-        [GlobalEnvironment(Pattern([]), [3])],
-    ]
-    assert InsertPredicate(destinations, [], []).get_destinations(word, slice(1, 2), {}, 5) == [3]
+    assert InsertPredicate.parse('@1,@2,@3', {}).get_destinations(word, slice(1, 2), {}, 5) == [3]
 
 def test_InsertPredicate_get_changes_returns_empty_slice_with_target_at_each_destination(word):
-    environments = [
-        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
-        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
-    ]
-    assert InsertPredicate([environments], [], []).get_changes(word, slice(1, 2), {}, 0) == [
+    string = '@1|3|5|7|9&@1|2|4|5|7|8'
+    assert InsertPredicate.parse(string, {}).get_changes(word, slice(1, 2), {}, 0) == [
         (slice(1, 1), ['a']),
         (slice(5, 5), ['a']),
         (slice(7, 7), ['a']),
     ]
 
 def test_MovePredicate_get_changes_adds_match_with_empty_replacement_to_InsertPredicate(word):
-    environments = [
-        GlobalEnvironment(Pattern([]), [1, 3, 5, 7, 9]),
-        GlobalEnvironment(Pattern([]), [1, 2, 4, 5, 7, 8]),
-    ]
-    assert MovePredicate([environments], [], []).get_changes(word, slice(1, 2), {}, 0) == [
+    string = '->@1|3|5|7|9&@1|2|4|5|7|8'
+    assert MovePredicate.parse(string, {}).get_changes(word, slice(1, 2), {}, 0) == [
         (slice(1, 2), []),
         (slice(1, 1), ['a']),
         (slice(5, 5), ['a']),
@@ -364,49 +329,33 @@ def test_Rule__get_targets_raises_NoTargetsFound_if_no_matches_are_found(word):
 
 # _validate_targets
 def test_Rule__validate_targets_skips_targets_if_they_overlap_with_earlier_targets(word):
-    rule = Rule(targets=[], predicates=[SubstPredicate([], [], [])])
+    rule = Rule.parse('[] > []', {})
     assert rule._validate_targets(word, targets=[(slice(i, i+3), {}, 0) for i in range(0, 8)]) == [
         (slice(0, 3), {}, 0, 0), (slice(3, 6), {}, 0, 0), (slice(6, 9), {}, 0, 0)
     ]
 
 def test_Rule__validate_targets_skips_targets_that_do_not_match_any_predicate(word):
     word.phones = ['#', 'a', 'a', 'a', 'a', '#']
-    rule = Rule(targets=[], predicates=[
-        SubstPredicate([], [[
-            LocalEnvironment(patterns.Pattern([patterns.Grapheme('#')]), patterns.Pattern([]))
-        ]], []),
-        SubstPredicate([], [[
-            LocalEnvironment(patterns.Pattern([]), patterns.Pattern([patterns.Grapheme('#')]))
-        ]], [])
-    ])
+    rule = Rule.parse('() > () / #_ > () / _#', {})
     assert rule._validate_targets(word, targets=[(slice(i, i+1), {}, 0) for i in range(1, 5)]) == [
         (slice(1, 2), {}, 0, 0), (slice(4, 5), {}, 0, 1)
     ]
 
 def test_Rule__validate_targets_raises_NoTargetsValidated_if_no_targets_validated(word):
-    rule = Rule(targets=[], predicates=[
-        SubstPredicate([], [
-            [LocalEnvironment(patterns.Pattern([patterns.Grapheme('#')]), patterns.Pattern([]))],
-            [LocalEnvironment(patterns.Pattern([]), patterns.Pattern([patterns.Grapheme('#')]))],
-        ], [])
-    ])
+    rule = Rule.parse('() > () / #_ ! _#', {})
     with raises(NoTargetsValidated):
         rule._validate_targets(word, targets=[(slice(1, 1), {}, 0)])
 
 # _get_changes
 def test_Rule__get_changes_combines_replacements_for_each_target_from_matched_predicate(word):
-    rule = Rule(targets=[], predicates=[
-        SubstPredicate([patterns.Pattern([patterns.Grapheme('a')])], [], []),
-        SubstPredicate([patterns.Pattern([patterns.Grapheme('b')])], [], []),
-        SubstPredicate([patterns.Pattern([patterns.Grapheme('c')])], [], []),
-    ])
+    rule = Rule.parse('() > a > b > c', {})
     assert rule._get_changes(word, targets=[
         (slice(1, 2), {}, 0, 0), (slice(3, 4), {}, 0, 1), (slice(5, 6), {}, 0, 2)
     ]) == [(slice(1, 2), ['a']), (slice(3, 4), ['b']), (slice(5, 6), ['c'])]
 
 # _apply_changes
 def test_Rule__apply_changes_makes_all_replacements(word):
-    assert Rule([], [])._apply_changes(word, [
+    assert Rule.parse('() > ()')._apply_changes(word, [
         (slice(1, 2), ['b']),
         (slice(3, 4), ['c']),
         (slice(5, 6), ['d']),
