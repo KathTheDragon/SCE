@@ -78,6 +78,8 @@ class Environment:
     def parse(string: str, categories: dict[str, Category]) -> 'Environment':
         if '_' in string:
             return LocalEnvironment.parse(string, categories)
+        elif string.startswith('~'):
+            return AdjacencyEnvironment.parse(string, categories)
         else:
             return GlobalEnvironment.parse(string, categories)
 
@@ -114,6 +116,33 @@ class LocalEnvironment(Environment):
             rmatch, _ = right.match(word, start=index, catixes=_catixes)
             if lmatch is not None and rmatch is not None:
                 indices.append(index)
+        return indices
+
+
+@dataclass(repr=False)
+class AdjacencyEnvironment(Environment):
+    pattern: Pattern
+
+    @staticmethod
+    def parse(string: str, categories: dict[str, Category]) -> 'AdjacencyEnvironment':
+        pattern = Pattern.parse(string.removeprefix('~'), categories)
+        return AdjencyEnvironment(pattern)
+
+    def __str__(self) -> str:
+        return f'~{self.pattern}'
+
+    def match(self, word: Word, match: slice, catixes: dict[int, int]) -> bool:
+        pattern = self.pattern.resolve(word[match])
+        return (pattern.match(word, stop=match.start, catixes=catixes)[0] or
+                pattern.match(word, start=match.stop, catixes=catixes)[0])
+
+    def match_all(self, word: Word, match: slice, catixes: dict[int, int]) -> list[int]:
+        pattern = self.pattern.resolve(word[match])
+        indices = []
+        for index in range(len(word) + 1):
+            if (pattern.match(word, stop=index, catixes=catixes)[0] or
+                pattern.match(word, start=index, catixes=catixes)[0]):
+                    indices.append(index)
         return indices
 
 

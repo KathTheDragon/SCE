@@ -180,6 +180,18 @@ def test_LocalEnvironment_match_all_returns_all_indices_where_left_and_right_mat
     )
     assert lenv.match_all(word, slice(1, 2), {}) == [3, 4]
 
+## AdjacencyEnvironment ##
+def test_AdjacencyEnvironment_matches_iff_pattern_matches_before_or_after_target(word):
+    env = AdjacencyEnvironment(MockPattern([slice(0, 1), slice(3, 7)]))
+    assert env.match(word, slice(1, 2), {})
+    assert env.match(word, slice(1, 3), {})
+    assert env.match(word, slice(2, 3), {})
+    assert not env.match(word slice(4, 5), {})
+
+def test_AdjacencyEnvironment_match_all_returns_all_indices_before_or_after_pattern_matches(word):
+    env = AdjacencyEnvironment(MockPattern([slice(0, 1), slice(3, 7)]))
+    assert env.match_all(word, slice(1, 2), {}) == [0, 1, 3, 7]
+
 ## GlobalEnvironment ##
 def test_GlobalEnvironment_with_no_indices_matches_anywhere_in_word(word):
     assert GlobalEnvironment(MockPattern([slice(0, 1)]), []).match(word, slice(1, 2), {})
