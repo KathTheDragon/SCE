@@ -126,7 +126,7 @@ class AdjacencyEnvironment(Environment):
     @staticmethod
     def parse(string: str, categories: dict[str, Category]) -> 'AdjacencyEnvironment':
         pattern = Pattern.parse(string.removeprefix('~'), categories)
-        return AdjencyEnvironment(pattern)
+        return AdjacencyEnvironment(pattern)
 
     def __str__(self) -> str:
         return f'~{self.pattern}'
