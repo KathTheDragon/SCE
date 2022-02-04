@@ -248,27 +248,30 @@ class Pattern:
                 elements.extend(map(Grapheme, words.parse(_chars, graphemes, separator)))
                 _chars = ''
             if char == '(':
-                end = match_bracket(string, index)
-                pattern = Pattern.parse(string[index+1:end], categories)
-                index = end + 1
-                if string[index:index+4] == '{*?}':
-                    elements.append(WildcardRepetition(pattern, greedy=False))
-                    index += 4
-                elif string[index:index+3] == '{*}':
-                    elements.append(WildcardRepetition(pattern, greedy=True))
-                    index += 3
-                elif string[index:index+1] == '{':
-                    end = match_bracket(string, index)
-                    elements.append(Repetition(pattern, int(string[index+1:end])))
-                    index = end + 1
-                elif string[index:index+1] == '?':
-                    elements.append(Optional(pattern, greedy=False))
-                    index += 1
+                if string[index:index+2] == '()':
+                    index += 2
                 else:
-                    elements.append(Optional(pattern, greedy=True))
+                    end = match_bracket(string, index)
+                    pattern = Pattern.parse(string[index+1:end], categories)
+                    index = end + 1
+                    if string[index:index+4] == '{*?}':
+                        elements.append(WildcardRepetition(pattern, greedy=False))
+                        index += 4
+                    elif string[index:index+3] == '{*}':
+                        elements.append(WildcardRepetition(pattern, greedy=True))
+                        index += 3
+                    elif string[index:index+1] == '{':
+                        end = match_bracket(string, index)
+                        elements.append(Repetition(pattern, int(string[index+1:end])))
+                        index = end + 1
+                    elif string[index:index+1] == '?':
+                        elements.append(Optional(pattern, greedy=False))
+                        index += 1
+                    else:
+                        elements.append(Optional(pattern, greedy=True))
             elif char == '[':
                 if string[index:index+2] == '[]':
-                    pass
+                    index += 2
                 else:
                     end = match_bracket(string, index)
                     category = cats.Category.parse(string[index+1:end], categories)
