@@ -213,7 +213,7 @@ class Predicate:
                 for group in split(_exceptions, ',')
             ]
         else:
-            exceptions = [[]]
+            exceptions = []
         if '/' in string:
             string, _conditions = string.rsplit('/', maxsplit=1)
             conditions = [
@@ -221,7 +221,7 @@ class Predicate:
                 for group in split(_conditions, ',')
             ]
         else:
-            conditions = [[]]
+            conditions = []
         return string, conditions, exceptions
 
     def __str__(self) -> str:
