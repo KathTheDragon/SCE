@@ -292,6 +292,15 @@ class InsertPredicate(Predicate):
     conditions: list[list[Environment]]
     exceptions: list[list[Environment]]
 
+    @classmethod
+    def parse(cls, string: str, categories: dict[str, Category]) -> 'InsertPredicate':
+        string, conditions, exceptions = Predicate._parse_environments(string, categories)
+        destinations = [
+            [Environment.parse(env, categories) for env in split(group, '&')]
+            for group in split(string, ',')
+        ]
+        return cls(destinations, conditions, exceptions)
+
     def __str__(self) -> str:
         destinations = ', '.join([
             ' & '.join([str(environment) for environment in and_group])
@@ -311,12 +320,7 @@ class InsertPredicate(Predicate):
 class CopyPredicate(InsertPredicate):
     @staticmethod
     def parse(string: str, categories: dict[str, Category]) -> 'CopyPredicate':
-        string, conditions, exceptions = Predicate._parse_environments(string, categories)
-        destinations = [
-            [Environment.parse(env, categories) for env in split(group, '&')]
-            for group in split(string.removeprefix('>>'), ',')
-        ]
-        return CopyPredicate(destinations, conditions, exceptions)
+        return super().parse(string.removeprefix('>>'), categories)
 
     def __str__(self) -> str:
         return f'>> {super().__str__()}'
@@ -326,12 +330,7 @@ class CopyPredicate(InsertPredicate):
 class MovePredicate(InsertPredicate):
     @staticmethod
     def parse(string: str, categories: dict[str, Category]) -> 'MovePredicate':
-        string, conditions, exceptions = Predicate._parse_environments(string, categories)
-        destinations = [
-            [Environment.parse(env, categories) for env in split(group, '&')]
-            for group in split(string.removeprefix('->'), ',')
-        ]
-        return MovePredicate(destinations, conditions, exceptions)
+        return super().parse(string.removeprefix('->'), categories)
 
     def __str__(self) -> str:
         return f'-> {super().__str__()}'
