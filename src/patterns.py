@@ -106,7 +106,10 @@ class Category(Element):
     subscript: int | None
 
     def __str__(self) -> str:
-        return f'[{self.category}]'
+        string = f'[{self.category}]'
+        if self.subscript is not None:
+            string += str(self.subscript).translate(str.maketrans('0123456789', '₀₁₂₃₄₅₆₇₈₉'))
+        return string
 
     def match(self, word: Word, start: int|None=None, stop: int|None=None, catixes: dict[int, int]={}) -> tuple[int, dict[int, int]]:
         index = get_index(word, start=start, stop=stop)
