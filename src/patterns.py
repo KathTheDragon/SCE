@@ -267,16 +267,18 @@ class Pattern:
                 else:
                     elements.append(Optional(pattern, greedy=True))
             elif char == '[':
-                end = match_bracket(string, index)
-                category = cats.Category.parse(string[index+1:end], categories)
-                index = end + 1
-                match = re.compile('[₀₁₂₃₄₅₆₇₈₉]+').match(string, index)
-                if match is None:
-                    subscript = None
+                if string[index:index+2] == '[]':
+                    pass
                 else:
-                    _subscript = match.group()
-                    subscript = int(_subscript.translate(str.maketrans('₀₁₂₃₄₅₆₇₈₉', '0123456789')))
-                    index = match.end()
+                    end = match_bracket(string, index)
+                    category = cats.Category.parse(string[index+1:end], categories)
+                    index = end + 1
+                    match = re.compile('[₀₁₂₃₄₅₆₇₈₉]+').match(string, index)
+                    if match is None:
+                        subscript = None
+                    else:
+                        subscript = int(match.group().translate(str.maketrans('₀₁₂₃₄₅₆₇₈₉', '0123456789')))
+                        index = match.end()
                 elements.append(Category(category, subscript))
             elif char == '*':
                 if string[index:index+3] == '**?':
