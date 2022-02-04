@@ -418,8 +418,8 @@ class Flags:
 class BaseRule:
     def __call__(self, word: Word, nested: bool=False) -> Word:
         if not nested:
-            logger.info(f'This word: {word}')
-            logger.debug(f'Segments: {" ".join(word)}')
+            logger.info(f'This word: {str(word)!r}')
+            logger.debug(f'Segments: {" ".join(map(repr, word))}')
         if randint(1, 100) <= self.flags.chance:
             for _ in range(self.flags.repeat):
                 wordin = word
@@ -542,7 +542,7 @@ class Rule(BaseRule):
         return word
 
     def _apply(self, word: Word) -> Word:
-        logger.debug(f'This rule: {self}')
+        logger.debug(f'This rule: {str(self)!r}')
 
         targets = self._get_targets(word)
         validated = self._validate_targets(word, targets)

@@ -12,7 +12,7 @@ class InvalidCharacter(Exception):
         return f'Encountered character {self.char!r} not in graphemes {list(self.graphemes)!r} while parsing string {self.string!r}'
 
 
-@dataclass
+@dataclass(repr=False)
 class Word:
     phones: list[str]
     graphemes: tuple[str] = ('*',)
@@ -28,6 +28,9 @@ class Word:
 
     def __str__(self) -> str:
         return unparse(self, self.graphemes, self.separator).strip(self.separator+'#').replace('#', ' ')
+
+    def __repr__(self) -> str:
+        return f'Word({str(self)!r})'
 
     def __len__(self) -> int:
         return len(self.phones)
